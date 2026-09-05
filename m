@@ -1,108 +1,105 @@
-Received: from mail-oi1-f179.google.com (mail-oi1-f179.google.com [209.85.167.179])
+Received: from mail-wm1-f48.google.com (mail-wm1-f48.google.com [209.85.128.48])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id E224C4772B8
-	for <drbd-dev@lists.linux.dev>; Fri,  4 Sep 2026 11:31:15 +0000 (UTC)
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=209.85.167.179
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 6EA914E80C7
+	for <drbd-dev@lists.linux.dev>; Sat,  5 Sep 2026 18:25:52 +0000 (UTC)
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=209.85.128.48
 ARC-Seal:i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
-	t=1788521477; cv=none; b=TIENxdEAHORaulLoqOOLHOljY5io/2UWsuNlxDlikbji/HqgRcRcN2FS8CnbHyJY5NlkKZkyrD5AOCnUkZXLXkDi52W5ULFUm3MpSBOI/FIaOoeRdgrsFBcR4sZM0DWGXy2ALgra/GiQW3Fo2BoRXSp1eAHRvgiWtLZZn4VS900=
+	t=1788632754; cv=none; b=ZzM3MczXdRRuXC54+3GyKI7LVZYkJFRErfWZseC5XTm5UC2lFpH0gLG07GNIfzmWR765cDb0Xm9Rb4k0mEE4NhSl+GHaHTv8uKfArMRQQVsN86JD5/rqW1mkLirpijKLaP4t9AWMh7M+SjKhpZ3W7gb0yHAv7nKi5Q8n0+sqT08=
 ARC-Message-Signature:i=1; a=rsa-sha256; d=subspace.kernel.org;
-	s=arc-20240116; t=1788521477; c=relaxed/simple;
-	bh=VrjZr0QY65ey/5ruqoMQdt4mmr1ftcLtXPhGdI3pIbc=;
-	h=From:To:Cc:Subject:Date:Message-ID:In-Reply-To:References:
-	 MIME-Version; b=PpsAPYHW0N/PWIpvOOqO3+gKjS2bcrKtuPyjZfz7ysjGkX6BxKhNEwiprK9ty2fA/QZHUuHqsKXPnYpho+qucwxGuG0xHcqzQM/OELJ3y1ydtHXzyV9MiI1STVwAEMaJ95BKaF/hY7EuOuKeWpSTf9TQa2NEpzuBBaH6HXSAdZw=
-ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=gmail.com; spf=pass smtp.mailfrom=gmail.com; dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b=PiKmiqOq; arc=none smtp.client-ip=209.85.167.179
-Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=gmail.com
-Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=gmail.com
+	s=arc-20240116; t=1788632754; c=relaxed/simple;
+	bh=rakUssaS3Z60N+MJ5OmiZGkRVrp4Fe3erHejZIlcqBA=;
+	h=Date:From:To:Cc:Subject:Message-ID:References:MIME-Version:
+	 Content-Type:Content-Disposition:In-Reply-To; b=D2iJ7AJrC+IntQqv2tyOWQ/uidzlx4fphRR8g1NXI7xppUuIiMGGWQXmU9Aj3rDHGrDpDymRANLbibnCosY+N1DT4qygeerdkULKeRIBQPpGHtUYMg96Ttv5/aj9MDtSyWZvQvCvQ90es5BLNXP/1rUy9TGaPddjvgsP2I7lW4U=
+ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com; spf=pass smtp.mailfrom=linbit.com; dkim=pass (2048-bit key) header.d=linbit-com.20251104.gappssmtp.com header.i=@linbit-com.20251104.gappssmtp.com header.b=dKgwubni; arc=none smtp.client-ip=209.85.128.48
+Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com
+Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=linbit.com
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="PiKmiqOq"
-Received: by mail-oi1-f179.google.com with SMTP id 5614622812f47-4b381337e1fso809774b6e.1
-        for <drbd-dev@lists.linux.dev>; Fri, 04 Sep 2026 04:31:15 -0700 (PDT)
+	dkim=pass (2048-bit key) header.d=linbit-com.20251104.gappssmtp.com header.i=@linbit-com.20251104.gappssmtp.com header.b="dKgwubni"
+Received: by mail-wm1-f48.google.com with SMTP id 5b1f17b1804b1-49b8e527d63so26563815e9.2
+        for <drbd-dev@lists.linux.dev>; Sat, 05 Sep 2026 11:25:52 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20251104; t=1788521474; x=1789126274; darn=lists.linux.dev;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:from:to:cc:subject:date
-         :message-id:reply-to:content-type;
-        bh=nvSqaX7ltGau4iZCiWuSB8nu2EopR8JjsAseFdLGvA8=;
-        b=PiKmiqOqLPypp8yGuzKJ6zB2jJZuZwafKG0HXEcM+ztkX8Yws8PaINGC0ODJA089pW
-         RSlaJGUL9sd0d2wmWZ95/zq15cmQhxOC3MdO/reKoImZac5KgGkWLedtfO00t0778pU7
-         U3Q/RfmJj30zY+x2dnwhJhMdMveYpb/avAP5aoEs7UkzpQptPTHk8naZ+xkkpr97uzop
-         DlF5sSg1zXLfnbEeeyLccKdDamyREobS16+9eBjK8gAoV5EY7HITKRz2Z5yH4/yUKPMY
-         4GWudai4i4nNkh9Sz4t7Q6s7NHgLjN0q+J5y02HJ/djdatxewWqhd4IWtIBrf9XuqVap
-         rapg==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20251104; t=1788521474; x=1789126274;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:x-gm-gg:x-gm-message-state:from
+        d=linbit-com.20251104.gappssmtp.com; s=20251104; t=1788632750; x=1789237550; darn=lists.linux.dev;
+        h=in-reply-to:content-disposition:content-type:mime-version
+         :references:mail-followup-to:message-id:subject:cc:to:from:date:from
          :to:cc:subject:date:message-id:reply-to:content-type;
-        bh=nvSqaX7ltGau4iZCiWuSB8nu2EopR8JjsAseFdLGvA8=;
-        b=mX6+11LasGSrgIifgAdGkjwwZNvIhxmvCaVmCLZmfUM+W8aTZCYJ4bJgONZXtXh5jK
-         ftkJslyhJTfcHCfkJ2fY0uQGBUdp27iK9YDoGCgs5k4Cqz4ZRxlw5YNoKru0nL8ZOeR2
-         aCfnE9VLn2b4GGDFY5IsBF870Tgs3yrVSIaeN8Iq4hmELtKQQTPrOo5SrehJVCiCIiZ+
-         gDyt9MT5yHb0yoLN9XZDVFcycQOalqk7tAA/T18mPQ7Y7QUvU8aoq86Kd6FD22x/fisq
-         SVMKoZGtuVRW0EUrKbU4hm3VflsP4i3y1yzNgOZ2Km7e4Q+T2HdDNtq9C6MSq4zhFb+7
-         nwSA==
-X-Forwarded-Encrypted: i=1; AKwUvBwodDJ8nIBx3J512Rc0tP1TTCTBDxNLgKEL6FUVu6iEBgjgzkmSv2Dp7iZKvoEzjhrqkTgCF5WR9g==@lists.linux.dev
-X-Gm-Message-State: AFuF++m8JYn9jcwPJmAJ/ZOvTD/pOeAHWwWqtnnmI2twFAxjAk9QEiSx
-	KWnsomz7IknUxy1kyOlQuTjLI/Xh2jCRVHTgBpzs1KgsTMjIjnfNy++U
-X-Gm-Gg: AYBFou2Y21ImyWcygjYT7JB88YdsSP8Czb66vV2YD79awcjYaRz0ZsVXP0Xfn3PUnNU
-	tW81D0cPtaoKdELTSqX2CClxwHbb/aHVJoBpBXjiAvgwMYzOcbyEKFrxbDpuH9Ajkd/BifzvyPo
-	zO2K69knTgRTiYmYPz8PLTsg1SiBqgPl72C+3ZsnkrW6rIq0cNTUPgyecuIaMptgQIAo7pK7pY/
-	hh5BAQhbG/KBtJd+N/DKroooyiD740Fj6KWEn0+U9Jps4uZIll/GSijugOGesbvo/yPkpDS8kXZ
-	x7jIhMOeSfCOhg3+YPhQWPiDSTSuH0ERgnadcwADlY4Mj2EKHU/rMf6NCTGYSVoSsdoTgk1dzjh
-	Ej9C4bfgxD79zdr3WlgfycDhiiUPLuDhAHr9t+AK5irVBse1HP3EYq8mqxiHW+zRCDISYlTWlec
-	Toh16vVXKq5fBzO1KwfN/7CTNie94/ACj309Gw9+p8jnbXSqUnkR0AB6QKZv5WvXA19jrJOIVon
-	EuelRxxWRZySCo=
-X-Received: by 2002:a05:6820:810c:b0:6b3:f4b8:bb86 with SMTP id 006d021491bc7-6b6fbcd0911mr3941939eaf.22.1788521474327;
-        Fri, 04 Sep 2026 04:31:14 -0700 (PDT)
-Received: from volcano9f6e-hostos.amd.com ([165.204.217.251])
-        by smtp.gmail.com with ESMTPSA id a92af1059eb24-143243f780csm6039922c88.13.2026.09.04.04.31.11
+        bh=Vh1tho+DMPBe6dOnmyRhQgSZf9FdJaDw5EyeCtsHdOA=;
+        b=dKgwubniKwgpbcy6Ta73p9kvjtDOg1hq+1Hn2FpVXn96iXG5FnGf5jSa/uT+HN19C+
+         xHFAUwR4CR+aKBGBzWi/8LwYEcDtJwBUnsng/2rTD59XmtqIIiHNL07brhdjvSt7Dx/g
+         HGfp7eLYPYA1m2wbV+GzR49YLidaT4Vr3AbcAju4eMRhciVQVrTKW7VtGWEe60CqELNc
+         CoToMcMp4o2ugHhY1bRWE2A60EAdx96vGRvToiN0tefJIhAn3MEQgLe6rt1Ebiqm7UIl
+         3gFCOfD6Mx6NaijH5NBTmrthCVuub1j52ipUUKFxias9Jgyc+u6Ty6aE54h4mdfZUOK6
+         PXCw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20251104; t=1788632750; x=1789237550;
+        h=in-reply-to:content-disposition:content-type:mime-version
+         :references:mail-followup-to:message-id:subject:cc:to:from:date
+         :x-gm-gg:x-gm-message-state:from:to:cc:subject:date:message-id
+         :reply-to:content-type;
+        bh=Vh1tho+DMPBe6dOnmyRhQgSZf9FdJaDw5EyeCtsHdOA=;
+        b=YvZGE/ElK/mZ7gPXi8eawrYhP8Lye7tlMhaFcpr6EsZyfpvKcFNFIsJh/5hciJK5/f
+         g3leHhHYmGlIQgepIPLtshoAtpkMmtRqqpmHt4BIVbDEhse3TNMMk/uyKlBPW+q0TcNC
+         baoo3rpIA0MJi+ZIuQR7DKMsoieYuS8ehimrOHVcrJuEeXMjd1RiHfdmoK2wUnjJTSvI
+         GacyndC3lOYZjd1GKIM4r5LY5h5EVpUWragexdIUE0FvDUJatTfwuOorhQXbaRsH34Dz
+         3jQn27j2PwWOlH59/kiSA7COWPFHFsW8Q2H4IfFikBjaLOherhuRsTzxXN6soOR8X/Uy
+         fmBA==
+X-Forwarded-Encrypted: i=1; AKwUvByDmZYgfp7ggBkaUcAU7dqSqYMYzFszX0MUl3fGZMTZvfO5upgEVHvylw3kf+4T/coQuFUB+WrPdw==@lists.linux.dev
+X-Gm-Message-State: AFuF++kpYZAve2ToB6/QXdPpf9k2cdsVH99UBxWxSf1dqFZtgqaSqKlL
+	7cCYREW36cEiprkhPJtie3wYCxQefEmuylE4bpjoQvYveP45O+JtJZsVJYgW7EAXvok=
+X-Gm-Gg: AYBFou2RTLIF9ebQwsUI/dORMMVIFAukAI0LQdfkQC14JaJUc+t2950mLx/H6u4kJzz
+	XFJQceeqQ714RkKkzICNmz2Lax3gPoID85u+pHFHDq4gVeGPrmWNL++9vQLnrjxRQDFrSkfSeS8
+	9G7Vxnd8hJqzriZ93d3h5veNeNBO8rl/71jL9IfvS8U8pC3zacPR+v47AwLzZSABjjp643RFV82
+	+FBFKkmGOFYi55lUlbZrn6FqiKIBkDNtEvyMtbGsf26x5C2/dDipXAbUcgcZp58r/+NfNdWtKDf
+	UQ2Eb/QGE4gMP9UiXHm8PzIa1tj2g1WkW5uBLzx2/gLwNyESSKbr9qt3DUSRIOso7wXm5AJGTnP
+	Gj7Xf5iY/qlz5IkMFsLhVqG/AaUjYsuqsRA86SbyiV9ERf/aQf7jYKqgbfNjsgHaOFfd+IyCoQd
+	jHUEDW2xBz0Ni5yJK+jlJcJP6mvtRncQ2RE1jNoUJysLzqk1laLU0BQ01nMucTG6vnLY7IxHrTm
+	Z5ZgbLesKDAG/r7Kb3gLzkJ9ga35PN8
+X-Received: by 2002:a05:600c:3b02:b0:49b:9202:6f80 with SMTP id 5b1f17b1804b1-49cf8220edemr149030685e9.6.1788632750385;
+        Sat, 05 Sep 2026 11:25:50 -0700 (PDT)
+Received: from localhost (h082218129081.host.wavenet.at. [82.218.129.81])
+        by smtp.gmail.com with ESMTPSA id 5b1f17b1804b1-49cee60bae6sm298811535e9.9.2026.09.05.11.25.49
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Fri, 04 Sep 2026 04:31:14 -0700 (PDT)
-From: Hemanth Selam <hemanth.selam@gmail.com>
-To: Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>,
-	Jens Axboe <axboe@kernel.dk>
-Cc: linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linux.dev,
+        Sat, 05 Sep 2026 11:25:49 -0700 (PDT)
+Date: Sat, 5 Sep 2026 20:25:48 +0200
+From: Christoph =?utf-8?Q?B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
+To: Hemanth Selam <hemanth.selam@gmail.com>
+Cc: Philipp Reisner <philipp.reisner@linbit.com>, 
+	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org, 
+	drbd-dev@lists.linux.dev, linux-block@vger.kernel.org
+Subject: Re: [PATCH 1/2] block: drbd: fix typos in comments
+Message-ID: <apxeZOBtnBZtgjfw@linbit.com>
+Mail-Followup-To: Hemanth Selam <hemanth.selam@gmail.com>, 
+	Philipp Reisner <philipp.reisner@linbit.com>, Lars Ellenberg <lars.ellenberg@linbit.com>, 
+	Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org, drbd-dev@lists.linux.dev, 
 	linux-block@vger.kernel.org
-Subject: [PATCH 2/2] block: fix repeated word 'is' in comment
-Date: Fri,  4 Sep 2026 17:01:00 +0530
-Message-ID: <20260904113103.10805-3-hemanth.selam@gmail.com>
-X-Mailer: git-send-email 2.48.1
-In-Reply-To: <20260904113103.10805-1-hemanth.selam@gmail.com>
 References: <20260904113103.10805-1-hemanth.selam@gmail.com>
+ <20260904113103.10805-2-hemanth.selam@gmail.com>
 Precedence: bulk
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
 List-Subscribe: <mailto:drbd-dev+subscribe@lists.linux.dev>
 List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20260904113103.10805-2-hemanth.selam@gmail.com>
 
-Drop the second 'is', reported by checkpatch.pl as a possible repeated
-word.  Only touches a comment, no code changes.
+On Fri, Sep 04, 2026 at 05:00:59PM +0530, Hemanth Selam wrote:
+>Fix typos in comments, reported by scripts/checkpatch.pl using the
+>misspelling list in scripts/spelling.txt.  Only touches comments, no code
+>changes.
+>
+>Assisted-by: Cursor:claude-opus-5
+>Signed-off-by: Hemanth Selam <hemanth.selam@gmail.com>
+>---
+> drivers/block/drbd/drbd_nl.c    | 2 +-
+> drivers/block/drbd/drbd_req.c   | 4 ++--
+> drivers/block/drbd/drbd_state.c | 2 +-
+> 3 files changed, 4 insertions(+), 4 deletions(-)
 
-Assisted-by: Cursor:claude-opus-5
-Signed-off-by: Hemanth Selam <hemanth.selam@gmail.com>
----
- drivers/block/drbd/drbd_state.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Typo fixes like this are usually only worth it if they come with "real"
+fixes in the same general area. Otherwise, they just cause unneccessary
+churn for the involved maintainers.
 
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 98abd2351d6d..679b19e6927a 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -1905,7 +1905,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
- 		int was_io_error = 0;
- 		/* corresponding get_ldev was in _drbd_set_state, to serialize
- 		 * our cleanup here with the transition to D_DISKLESS.
--		 * But is is still not save to dreference ldev here, since
-+		 * But is still not save to dreference ldev here, since
- 		 * we might come from an failed Attach before ldev was set. */
- 		if (device->ldev) {
- 			rcu_read_lock();
--- 
-2.48.1
-
+Regards,
+Christoph
