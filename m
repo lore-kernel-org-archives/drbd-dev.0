@@ -1,183 +1,95 @@
 Received: from smtp.kernel.org (aws-us-west-2-korg-mail-alma10-1.taild15c8.ts.net [100.103.45.18])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id AC5832D0C75;
-	Fri,  2 Oct 2026 01:19:27 +0000 (UTC)
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id BBBA345C6FB
+	for <drbd-dev@lists.linux.dev>; Fri,  2 Oct 2026 08:33:42 +0000 (UTC)
 Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=100.103.45.18
 ARC-Seal:i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
-	t=1790903968; cv=none; b=hb13If0pGA+1guB+ZWXOGSp8/Op/6ijm+itcp7FUteol3dXkFWT9u01q6N8ZthfNcKwZvZn9vQxrUoMJykXJ+KOsxB4JHqs/gE9O3ixKNkhDdB2HjroGEOzNXs6mLqbOe+IGpCBC9XxA+LnuCGiWp0UH5DX/3hnCO7spNKFQUyc=
+	t=1790930024; cv=none; b=Ky50WTWYGXUXURYXIS9xj4uLUcBZFHFRmmHT2wiTfX4SqDIaNYtndBXdTCjpORWY/omqRaEo3S+xRtwqYiYN1BZxP4p2wns1T/IgLfgnru1dnH9TZe9uyIY5/vdwRl/CfUFADjAq5kFxvuHWqNCKPD8uB5Iu8mR7+twGp0EVFpI=
 ARC-Message-Signature:i=1; a=rsa-sha256; d=subspace.kernel.org;
-	s=arc-20240116; t=1790903968; c=relaxed/simple;
-	bh=OKNrQMhyXEDpqmEu+exjq6q8XBhoZP//xXVKI16ebvI=;
-	h=Subject:From:To:Cc:Date:Message-ID:In-Reply-To:References:
-	 Content-Type:MIME-Version; b=pW5RFAyWbz6PcqRZ5mDmAEXYjoxivF8kJAPD17UxTqCxa2wmLqASKjNWzcXnzqQRCGJYaRlQi+TQN+ch/mVDbU9XmMe/mpqoNMJt4wpI4Ll8SxfmRJFAtG2LdHnsNkWg1GVlUlLFZrn3VanKsJA5MyMNfPzOobNHXyR6lbc2vF4=
-ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dkim=pass (2048-bit key) header.d=kernel.org header.i=@kernel.org header.b=ErJrQb9S; arc=none smtp.client-ip=100.103.45.18
+	s=arc-20240116; t=1790930024; c=relaxed/simple;
+	bh=sFVRBwYDD5Gnyd+B1hrfrWd2GP91KOOcraidKuP/0Vw=;
+	h=MIME-Version:References:In-Reply-To:From:Date:Message-ID:Subject:
+	 To:Cc:Content-Type; b=sbFewxmh6YdQasiBJf6AnGVxkXOd2VjzDMqzGj/WDCJjYEBarWRAYWPT+d8vU4LyincLJ4OMqbct/A27lkPbEJupltN7J+ocRJrAzFzAQ87Dl3RAaVT8sRdgjJeo6LQfr4TqhhrJRSvpNupozHTDiFGn4Vk7U2BCFySWVmhAWHw=
+ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dkim=pass (2048-bit key) header.d=kernel.org header.i=@kernel.org header.b=cXZ/vgUC; arc=none smtp.client-ip=100.103.45.18
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key) header.d=kernel.org header.i=@kernel.org header.b="ErJrQb9S"
-Received: by smtp.kernel.org (Postfix) with ESMTPSA id EFC231F00893;
-	Fri,  2 Oct 2026 01:19:24 +0000 (UTC)
+	dkim=pass (2048-bit key) header.d=kernel.org header.i=@kernel.org header.b="cXZ/vgUC"
+Received: by smtp.kernel.org (Postfix) with ESMTPSA id 5C2C01F008A4
+	for <drbd-dev@lists.linux.dev>; Fri,  2 Oct 2026 08:33:41 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=kernel.org;
-	s=k20260515; t=1790903967;
-	bh=5ZaH7kjR91t+LbbdbOtI4sfeLxRZza0chRAHxNS1iZ0=;
-	h=Subject:From:To:Cc:Date:In-Reply-To:References;
-	b=ErJrQb9S6f1R8SuFuhRXDxtU8WylahNE8JFxYAKJbzR2Ra+k4EfG9s0Q2jOzgBvXC
-	 qz1D8sPUNaERGcuTc2onmU+T5EW1cBavf0efZzDUNJwqPa+eFpDt1A9dDVSDV2Vspg
-	 2pPjPRUpaDdfmGgV0q6bldA+XzCTotbFizw2N8tHRFy8V2aflQMbR2Uxut34s+NAoj
-	 dD5sGlmReE2yU3ptLwk926hWAJZjV2esT9gPoVquL/vAVgd7Ms1DfSTvVV/cYym95D
-	 s6ujsM2cjFMa4em+WkhnJ6AZT/XUOn961ImH+2/owsLkh0DAxyVXs61S/yRVcrG8t6
-	 fIr88V2mvqjdA==
-Subject: Re: [PATCH v3 net-next 9/9] tcp: add tp->tcp_nospace
-From: netdev-bot+sashiko@kernel.org
-To: edumazet@kernel.org
-Cc: davem@davemloft.net, kuba@kernel.org, pabeni@redhat.com, horms@kernel.org,
- ncardwell@google.com, kuniyu@google.com, edumazet@google.com,
- netdev@vger.kernel.org, aahringo@redhat.com, teigland@redhat.com,
- gfs2@lists.linux.dev, john.fastabend@gmail.com, jakub@cloudflare.com,
- sd@queasysnail.net, jiayuan.chen@linux.dev, matttbe@kernel.org,
- martineau@kernel.org, geliang@kernel.org, mptcp@lists.linux.dev,
- guwen@linux.alibaba.com, dust.li@linux.alibaba.com, alibuda@linux.alibaba.com,
- cel@kernel.org, jlayton@kernel.org, neil@brown.name, okorniev@redhat.com,
- Dai.Ngo@oracle.com, tom@talpey.com, trondmy@kernel.org, anna@kernel.org,
- linux-nfs@vger.kernel.org, achender@kernel.org, rds-devel@oss.oracle.com,
- philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
- christoph.boehmwalder@linbit.com, axboe@kernel.dk, drbd-dev@lists.linux.dev,
- kbusch@kernel.org, hch@lst.de, sagi@grimberg.me, kch@nvidia.com,
- linux-nvme@lists.infradead.org, idryomov@gmail.com, amarkuze@redhat.com,
- slava@dubeyko.com, ceph-devel@vger.kernel.org
-Date: Fri, 02 Oct 2026 01:19:24 +0000
-Message-ID: <179090396455.434549.14548496564842351902@kernel.org>
-In-Reply-To: <20260929071743.23624-10-edumazet@kernel.org>
-References: <20260929071743.23624-10-edumazet@kernel.org>
-X-sashiko-severity: Low
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+	s=k20260515; t=1790930021;
+	bh=w4IDAEWUM5goHy4cCtU/RvHHI4fpSYagB5nlgyoCVks=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc;
+	b=cXZ/vgUCZgLaMpyiIPgB3rJT4TzVgO3zOCcJ1gPBaCItJvklxFcBZMdtto7Vv57j7
+	 WtPnQ9vq1tuDS5CQDM1xCaDiB8HsUENjLZd072V53xNDundlLTzOfApih5IAQQEEwq
+	 kw+0zUFn1/q1lck7rju1TxV0KHv7tOtmG0P6Fyul1xEFb17OioyhCUTQ3FSYm5UJfH
+	 PbkOBxf9tNDoAhY5X3k7VSnU5XvcyndoD3H/Bddsl5x8xLzF7cKCBhKa8gYh4gO6kE
+	 pU0jYjH/pfNWir6ig/xaPsMDOo3rFI0WLizKlMts4ZODGEcTULmzs0xWmDvxoqQ5b9
+	 PgO6QoK6L9eYg==
+Received: by mail-oa2-f34.google.com with SMTP id 586e51a60fabf-499c0f06935so2848162fac.3
+        for <drbd-dev@lists.linux.dev>; Fri, 02 Oct 2026 01:33:41 -0700 (PDT)
+X-Forwarded-Encrypted: i=1; AKwUvBx46g77wN6QAXrg2mGtU+A04V+TqYsUuM6Wl/qsveyi+3xNTN+h5M2jOytjAMSAizx/SrMm6gYJYw==@lists.linux.dev
+X-Gm-Message-State: AFq9FYL7XvrcGIiU61OJAGbm6oRhJBSGNSGert1V5upY4KzpgSVIduMX
+	/vcVrlI6XObZorcBH7TGRXTkLjilYIe388SxPIG5s7pvuJglJWcpgagxPwQYZb8y5kDNlMgCwK1
+	G90sQ+WMfu9JvUbTLQSMp9c1gc/o5g/o=
+X-Received: by 2002:a05:6871:a841:b0:475:a153:2dbe with SMTP id
+ 586e51a60fabf-49e15d371demr1895507fac.20.1790930020024; Fri, 02 Oct 2026
+ 01:33:40 -0700 (PDT)
 Precedence: bulk
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
 List-Subscribe: <mailto:drbd-dev+subscribe@lists.linux.dev>
 List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 MIME-Version: 1.0
+References: <20260929071743.23624-2-edumazet@kernel.org> <179090395863.434549.3668493667259120759@kernel.org>
+In-Reply-To: <179090395863.434549.3668493667259120759@kernel.org>
+From: Eric Dumazet <edumazet@kernel.org>
+Date: Fri, 2 Oct 2026 10:33:29 +0200
+X-Gmail-Original-Message-ID: <CAL4WiipAe11BJA0rs33_0=bzYXMr0qQvQMPc+6-awyFQdQ1yCA@mail.gmail.com>
+X-Gm-Features: AclHuK8nVtaoGsIab0P-m2s1B3ju3ekNwAoCUlK85M2ENTXymnZNl3W63NoMomk
+Message-ID: <CAL4WiipAe11BJA0rs33_0=bzYXMr0qQvQMPc+6-awyFQdQ1yCA@mail.gmail.com>
+Subject: Re: [PATCH v3 net-next 1/9] dlm: fix send buffer backpressure handling
+To: netdev-bot+sashiko@kernel.org
+Cc: davem@davemloft.net, kuba@kernel.org, pabeni@redhat.com, horms@kernel.org, 
+	ncardwell@google.com, kuniyu@google.com, edumazet@google.com, 
+	netdev@vger.kernel.org, aahringo@redhat.com, teigland@redhat.com, 
+	gfs2@lists.linux.dev, john.fastabend@gmail.com, jakub@cloudflare.com, 
+	sd@queasysnail.net, jiayuan.chen@linux.dev, matttbe@kernel.org, 
+	martineau@kernel.org, geliang@kernel.org, mptcp@lists.linux.dev, 
+	guwen@linux.alibaba.com, dust.li@linux.alibaba.com, alibuda@linux.alibaba.com, 
+	cel@kernel.org, jlayton@kernel.org, neil@brown.name, okorniev@redhat.com, 
+	Dai.Ngo@oracle.com, tom@talpey.com, trondmy@kernel.org, anna@kernel.org, 
+	linux-nfs@vger.kernel.org, achender@kernel.org, rds-devel@oss.oracle.com, 
+	philipp.reisner@linbit.com, lars.ellenberg@linbit.com, 
+	christoph.boehmwalder@linbit.com, axboe@kernel.dk, drbd-dev@lists.linux.dev, 
+	kbusch@kernel.org, hch@lst.de, sagi@grimberg.me, kch@nvidia.com, 
+	linux-nvme@lists.infradead.org, idryomov@gmail.com, amarkuze@redhat.com, 
+	slava@dubeyko.com, ceph-devel@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Thank you for your contribution! Sashiko AI review found more severe
-issue(s) in other patches of this series. This mail is only an FYI, in case
-you want to address the nit picks below when you respin.
+On Fri, Oct 2, 2026 at 3:19=E2=80=AFAM <netdev-bot+sashiko@kernel.org> wrot=
+e:
+>
+> Thank you for your contribution! Sashiko AI review found 2 potential
+> issue(s) to consider.
+>
+> Critical: 0 =C2=B7 High: 1 =C2=B7 Medium: 0 =C2=B7 Low: 1
+>
+> If you believe none of the issues are legitimate, please reply to each
+> issue of Medium severity or higher and explain why the AI is wrong.
+> If any of them are legitimate and you plan to respin, please let patchwor=
+k
+> know by including "pw-bot: cr" as a separate line at the end of your repl=
+y
+> (one such reply per series is enough).
+>
+> - [High] A TCP reset or TCP timeout while the connection is waiting for
+>   send space can stall the dlm connection permanently.
 
-Low priority / nit picks for your consideration:
+I dunno if I want to spend time fixing all dlm bugs.
 
-- [Low] The commit message says struct socket lives in a cache line
-  "which the TCP fast paths do not otherwise touch".
-- [Low] A child socket inherits the listener's tp->tcp_nospace and
-  nothing resets it.
+It seems TCP changes are now stuck because ood pre-existing bugs in
+in-kernel-users.
 
---
-
-tcp: add tp->tcp_nospace
-
-This commit adds tp->tcp_nospace, a copy of SOCK_NOSPACE that lives in the
-tcp_sock_write_tx cache line group. With it, tcp_check_space() no longer
-has to read sk->sk_socket->flags on every ACK and every transmit.
-sk_set_nospace() and sk_clear_nospace() keep the rule that SOCK_NOSPACE
-set implies tp->tcp_nospace set. MPTCP subflows pin tp->tcp_nospace to 1
-in subflow_ulp_init().
-
-> struct socket lives in its own cache line, which the TCP fast paths do
-> not otherwise touch, so testing sk->sk_socket->flags pulls in an extra
-> cache line that is cold when the working set is large.
-
-[Severity: Low]
-Is this still accurate after this patch? Only tcp_check_space() was
-converted to use the new field.
-
-tcp_write_xmit() calls tcp_cwnd_validate() whenever it has sent packets.
-If the flow is not cwnd limited and the write queue is empty,
-tcp_cwnd_validate() still reads sk->sk_socket->flags:
-
-net/ipv4/tcp_output.c:tcp_cwnd_validate() {
-    ...
-		if (tcp_write_queue_empty(sk) && sk->sk_socket &&
-		    test_bit(SOCK_NOSPACE, &sk->sk_socket->flags) &&
-		    (1 << sk->sk_state) & (TCPF_ESTABLISHED | TCPF_CLOSE_WAIT))
-			tcp_chrono_start(sk, TCP_CHRONO_SNDBUF_LIMITED);
-    ...
-}
-
-tcp_cwnd_application_limited() also reads it on the
-slow_start_after_idle path:
-
-net/ipv4/tcp_output.c:tcp_cwnd_application_limited() {
-    ...
-	if (inet_csk(sk)->icsk_ca_state == TCP_CA_Open &&
-	    sk->sk_socket && !test_bit(SOCK_NOSPACE, &sk->sk_socket->flags)) {
-    ...
-}
-
-Request/response senders limited by the application empty the write
-queue on every transmit. Their transmits would still pull in the struct
-socket cache line. The microbenchmark only times tcp_check_space(), so it
-would not show this.
-
-The new rule (SOCK_NOSPACE set => tp->tcp_nospace set) means both sites
-could check READ_ONCE(tp->tcp_nospace) first without changing behavior.
-Would that be worth doing? If not, could the commit message avoid saying
-the fast paths no longer touch struct socket?
-
-[ ... ]
-
-> diff --git a/net/mptcp/subflow.c b/net/mptcp/subflow.c
-> index f0a6725d2c376..e297c88be503b 100644
-> --- a/net/mptcp/subflow.c
-> +++ b/net/mptcp/subflow.c
-> @@ -2001,6 +2001,11 @@ static int subflow_ulp_init(struct sock *sk)
->  	pr_debug("subflow=%p, family=%d\n", ctx, sk->sk_family);
->  
->  	tp->is_mptcp = 1;
-> +	/* Subflows share the MPTCP socket, and thus its SOCK_NOSPACE bit,
-> +	 * which tcp_check_space() can not mirror. Pin the mirror so that
-> +	 * __tcp_check_space() always tests the shared bit.
-> +	 */
-> +	tp->tcp_nospace = 1;
-
-[Severity: Low]
-Do passive children of an MPTCP listener inherit this pinned value, even
-when they fall back to plain TCP?
-
-The listener subflow gets tcp_nospace = 1 here through
-mptcp_subflow_create_socket()->tcp_set_ulp()->subflow_ulp_init(). Its
-is_mptcp stays 1, so tcp_clear_nospace() never clears it.
-
-tcp_create_openreq_child()->inet_csk_clone_lock()->sk_clone_lock() then
-copies the tcp_sock, and nothing resets tcp_nospace.
-
-When the SYN comes from a peer without MPTCP,
-subflow_ulp_clone()->subflow_ulp_fallback() makes the child plain TCP:
-
-	tcp_sk(sk)->is_mptcp = 0;
-
-mptcp_stream_accept() then grafts it as a plain TCP socket. Its new
-struct socket has SOCK_NOSPACE clear. This new early return in
-__tcp_check_space() then applies:
-
-	if (!sock || !test_bit(SOCK_NOSPACE, &sock->flags))
-		return;
-
-So tcp_new_space()->sk_stream_write_space()->sk_clear_nospace() is never
-reached, and that is the only place the hint gets cleared. It stays set
-until the application first fills its send buffer.
-
-Until then, every ACK and every transmit calls __tcp_check_space() out of
-line and reads sk->sk_socket->flags. These connections would not get the
-optimization.
-
-The rule still holds, so no EPOLLOUT is lost. Could tcp_nospace be reset
-for the child, for example in tcp_create_openreq_child() or in
-subflow_ulp_fallback()?
-
-The same can happen with a plain TCP listener. If a socket was connected,
-ended up with tcp_nospace = 1, was disconnected and then put into
-listen(), its children inherit the stale value too. tcp_disconnect() does
-not reset it either.
-
-[ ... ]
-
--- 
-Sashiko AI review · https://netdev-ai.bots.linux.dev/sashiko/#/patchset/20260929071743.23624-1-edumazet%40kernel.org
+Sad.
