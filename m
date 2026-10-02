@@ -1,40 +1,65 @@
-Received: from smtp.kernel.org (aws-us-west-2-korg-mail-alma10-1.taild15c8.ts.net [100.103.45.18])
+Received: from us-smtp-delivery-124.mimecast.com (us-smtp-delivery-124.mimecast.com [170.10.133.124])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id BBBA345C6FB
-	for <drbd-dev@lists.linux.dev>; Fri,  2 Oct 2026 08:33:42 +0000 (UTC)
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=100.103.45.18
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id C5CD931716D
+	for <drbd-dev@lists.linux.dev>; Fri,  2 Oct 2026 14:07:31 +0000 (UTC)
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=170.10.133.124
 ARC-Seal:i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
-	t=1790930024; cv=none; b=Ky50WTWYGXUXURYXIS9xj4uLUcBZFHFRmmHT2wiTfX4SqDIaNYtndBXdTCjpORWY/omqRaEo3S+xRtwqYiYN1BZxP4p2wns1T/IgLfgnru1dnH9TZe9uyIY5/vdwRl/CfUFADjAq5kFxvuHWqNCKPD8uB5Iu8mR7+twGp0EVFpI=
+	t=1790950053; cv=none; b=ZKVfEI6rUd9/rBfLH8Pk/RYyX4QHKtqFIY+e0eSi6gUd2kGidtp5dSisvyC2r230SHWKL2JRaDP6MG8/ePux6Troa+ujr3Qqyr62ElKRj6U4QWfvDt6s1eSwmOndGWmhqcIqR/9HrBf1Fn16chwO816LoGCX61nWKQB+z0292Jo=
 ARC-Message-Signature:i=1; a=rsa-sha256; d=subspace.kernel.org;
-	s=arc-20240116; t=1790930024; c=relaxed/simple;
-	bh=sFVRBwYDD5Gnyd+B1hrfrWd2GP91KOOcraidKuP/0Vw=;
+	s=arc-20240116; t=1790950053; c=relaxed/simple;
+	bh=yfDvPO4H/mIRlRzgF1ehHxShRFO4ABWe5fq0yL3+cMs=;
 	h=MIME-Version:References:In-Reply-To:From:Date:Message-ID:Subject:
-	 To:Cc:Content-Type; b=sbFewxmh6YdQasiBJf6AnGVxkXOd2VjzDMqzGj/WDCJjYEBarWRAYWPT+d8vU4LyincLJ4OMqbct/A27lkPbEJupltN7J+ocRJrAzFzAQ87Dl3RAaVT8sRdgjJeo6LQfr4TqhhrJRSvpNupozHTDiFGn4Vk7U2BCFySWVmhAWHw=
-ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dkim=pass (2048-bit key) header.d=kernel.org header.i=@kernel.org header.b=cXZ/vgUC; arc=none smtp.client-ip=100.103.45.18
+	 To:Cc:Content-Type; b=Dt7/MhVGyEbl0kIJGMocUfBouaKTZxaPgN2+0nTknIy30IynYFaponSTybxCHhTKR9PXBXpD9UVgPmo/quUhBS6IKR+RvpKp5HaoO6/TT69hbavuYcg4d0Bg2mPWaZgkS9Cgm8IzOAdK9H7SNhVy4UF/SdJiTG+Sj74xtcw2XVs=
+ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=pass (p=quarantine dis=none) header.from=redhat.com; spf=pass smtp.mailfrom=redhat.com; dkim=pass (1024-bit key) header.d=redhat.com header.i=@redhat.com header.b=WBVhT5rw; arc=none smtp.client-ip=170.10.133.124
+Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=quarantine dis=none) header.from=redhat.com
+Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=redhat.com
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key) header.d=kernel.org header.i=@kernel.org header.b="cXZ/vgUC"
-Received: by smtp.kernel.org (Postfix) with ESMTPSA id 5C2C01F008A4
-	for <drbd-dev@lists.linux.dev>; Fri,  2 Oct 2026 08:33:41 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=kernel.org;
-	s=k20260515; t=1790930021;
-	bh=w4IDAEWUM5goHy4cCtU/RvHHI4fpSYagB5nlgyoCVks=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc;
-	b=cXZ/vgUCZgLaMpyiIPgB3rJT4TzVgO3zOCcJ1gPBaCItJvklxFcBZMdtto7Vv57j7
-	 WtPnQ9vq1tuDS5CQDM1xCaDiB8HsUENjLZd072V53xNDundlLTzOfApih5IAQQEEwq
-	 kw+0zUFn1/q1lck7rju1TxV0KHv7tOtmG0P6Fyul1xEFb17OioyhCUTQ3FSYm5UJfH
-	 PbkOBxf9tNDoAhY5X3k7VSnU5XvcyndoD3H/Bddsl5x8xLzF7cKCBhKa8gYh4gO6kE
-	 pU0jYjH/pfNWir6ig/xaPsMDOo3rFI0WLizKlMts4ZODGEcTULmzs0xWmDvxoqQ5b9
-	 PgO6QoK6L9eYg==
-Received: by mail-oa2-f34.google.com with SMTP id 586e51a60fabf-499c0f06935so2848162fac.3
-        for <drbd-dev@lists.linux.dev>; Fri, 02 Oct 2026 01:33:41 -0700 (PDT)
-X-Forwarded-Encrypted: i=1; AKwUvBx46g77wN6QAXrg2mGtU+A04V+TqYsUuM6Wl/qsveyi+3xNTN+h5M2jOytjAMSAizx/SrMm6gYJYw==@lists.linux.dev
-X-Gm-Message-State: AFq9FYL7XvrcGIiU61OJAGbm6oRhJBSGNSGert1V5upY4KzpgSVIduMX
-	/vcVrlI6XObZorcBH7TGRXTkLjilYIe388SxPIG5s7pvuJglJWcpgagxPwQYZb8y5kDNlMgCwK1
-	G90sQ+WMfu9JvUbTLQSMp9c1gc/o5g/o=
-X-Received: by 2002:a05:6871:a841:b0:475:a153:2dbe with SMTP id
- 586e51a60fabf-49e15d371demr1895507fac.20.1790930020024; Fri, 02 Oct 2026
- 01:33:40 -0700 (PDT)
+	dkim=pass (1024-bit key) header.d=redhat.com header.i=@redhat.com header.b="WBVhT5rw"
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=redhat.com;
+	s=mimecast20190719; t=1790950048;
+	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
+	 to:to:cc:cc:mime-version:mime-version:content-type:content-type:
+	 content-transfer-encoding:content-transfer-encoding:
+	 in-reply-to:in-reply-to:references:references;
+	bh=XDp0RcD7HYWUzlsOLtsxZUXX4GvVdXcns7B6N4dcr9I=;
+	b=WBVhT5rwOdZcRwMf62UJKbSAoR6AtfyRmasAtmZTvE6G/l8cN/+UJAjyxYsRovPsAsF9RJ
+	HzpvUdOVuYAzKMc4n1RAiBwuu4y5ZCf4b4VpW6xoM389rocIOeS5rTAcL0JbD8zHduAj7I
+	Ih1wrvqw7jCemc4OFehVzcPl/gs7Cg8=
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com
+ [209.85.208.199]) by relay.mimecast.com with ESMTP with STARTTLS
+ (version=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384) id
+ us-mta-122-ENCnU--oPUq3kGZQ6n84ug-1; Fri, 02 Oct 2026 10:07:20 -0400
+X-MC-Unique: ENCnU--oPUq3kGZQ6n84ug-1
+X-Mimecast-MFC-AGG-ID: ENCnU--oPUq3kGZQ6n84ug_1790950034
+Received: by mail-lj1-f199.google.com with SMTP id 38308e7fff4ca-3a767a22ca6so385171fa.1
+        for <drbd-dev@lists.linux.dev>; Fri, 02 Oct 2026 07:07:17 -0700 (PDT)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20260707; t=1790950034; x=1791554834;
+        h=content-transfer-encoding:content-type:cc:to:subject:message-id
+         :date:from:in-reply-to:references:mime-version:x-gm-gg
+         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to
+         :content-type;
+        bh=XDp0RcD7HYWUzlsOLtsxZUXX4GvVdXcns7B6N4dcr9I=;
+        b=x2p84/OJoSHnfgqJT1+dUfy/mhkUaySJpO+c4aSJxDbszL72sWhunVSzwIMIgBnU0u
+         4eYeKYaEDgj2DZyWMLXYpX5jqwNHfbzETO4CMLTSWoScZ+ppq48dnaK1fDHZNXi9NLJ/
+         PtbnVMd9j/qns4RY3Ipg5klC2OsR7wwSeljD1lDgeAb3YeExdXU/5hTKccrgP1RVD1J+
+         DMDW32+O585yOayofJdI8jhzgMrunzZ+LcoBmprMvj3ybqHW545jAGiE3hJR+LQkAcz9
+         nj3wZnfQYLN9HbrVyRcIDMjVsY//0SzRcW6X2ibYrv/umj9rCyGti4gUenvQReIWUt/N
+         POGw==
+X-Forwarded-Encrypted: i=1; AKwUvByCTgcqCr80I39sRaAFQFhlo0joOjgq+WC/ES7pSDfvdC+NWGkJvlRij7E+ugZTHky78WjsgKNgGw==@lists.linux.dev
+X-Gm-Message-State: AFq9FYISyZRPeJ8H8qJAGMjNJ0pPk7Altl4lDp1Mw2bRZbQZmjowi+Fo
+	Vn/y9QaeHHCuP0Yu2V2HYz7xFkjCx14e2CgqfkdiJOLhYnmlTxWnFUROsHLXkybtb8pBg88yBtp
+	Sc/Qm0oktVc3thVywLEOEiokh74rE2fS8UntAdnBY6ctYHVQ9OSqEjsLNUVm5wcYEHW6dLIMiIx
+	HbInSWg/eWn8jswrhP3gYM3v3IegjrxPeI6EA=
+X-Gm-Gg: AYBFou0YlmdDKpF1CvJnrBtmrl29iYuKH4zZwn1N0qBTfq19x5GCE/SUzY+i7PfPUJq
+	pvfC3ep9hBzsZw1sqB1QnELN0AIZ4UsdAPbDBLC1wfpUVteIKjFeAdQ6FQSjLoCmKtRHFbQxonl
+	XtV2CcjtTdMzwhZ5OLy7cFsejrzcgW/ILWoXUSgLQ6GQm45gXNnHiBzZ+E
+X-Received: by 2002:a2e:bc24:0:b0:3a6:95a:52a6 with SMTP id 38308e7fff4ca-3a8877b72d8mr7514601fa.20.1790950033938;
+        Fri, 02 Oct 2026 07:07:13 -0700 (PDT)
+X-Received: by 2002:a2e:bc24:0:b0:3a6:95a:52a6 with SMTP id
+ 38308e7fff4ca-3a8877b72d8mr7514081fa.20.1790950033516; Fri, 02 Oct 2026
+ 07:07:13 -0700 (PDT)
 Precedence: bulk
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
@@ -42,17 +67,17 @@ List-Subscribe: <mailto:drbd-dev+subscribe@lists.linux.dev>
 List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 MIME-Version: 1.0
 References: <20260929071743.23624-2-edumazet@kernel.org> <179090395863.434549.3668493667259120759@kernel.org>
-In-Reply-To: <179090395863.434549.3668493667259120759@kernel.org>
-From: Eric Dumazet <edumazet@kernel.org>
-Date: Fri, 2 Oct 2026 10:33:29 +0200
-X-Gmail-Original-Message-ID: <CAL4WiipAe11BJA0rs33_0=bzYXMr0qQvQMPc+6-awyFQdQ1yCA@mail.gmail.com>
-X-Gm-Features: AclHuK8nVtaoGsIab0P-m2s1B3ju3ekNwAoCUlK85M2ENTXymnZNl3W63NoMomk
-Message-ID: <CAL4WiipAe11BJA0rs33_0=bzYXMr0qQvQMPc+6-awyFQdQ1yCA@mail.gmail.com>
+ <CAL4WiipAe11BJA0rs33_0=bzYXMr0qQvQMPc+6-awyFQdQ1yCA@mail.gmail.com>
+In-Reply-To: <CAL4WiipAe11BJA0rs33_0=bzYXMr0qQvQMPc+6-awyFQdQ1yCA@mail.gmail.com>
+From: Alexander Aring <aahringo@redhat.com>
+Date: Fri, 2 Oct 2026 10:07:01 -0400
+X-Gm-Features: AclHuK_sfowi4LPKpSWl8IXP3uRNzWbqORQfvYROS9BqQto16BFcN8kPZWF14yQ
+Message-ID: <CAK-6q+ga-MNEXgENToB2hLB9jzpsGMrz-1sOo7WQP5M-scnAxg@mail.gmail.com>
 Subject: Re: [PATCH v3 net-next 1/9] dlm: fix send buffer backpressure handling
-To: netdev-bot+sashiko@kernel.org
-Cc: davem@davemloft.net, kuba@kernel.org, pabeni@redhat.com, horms@kernel.org, 
-	ncardwell@google.com, kuniyu@google.com, edumazet@google.com, 
-	netdev@vger.kernel.org, aahringo@redhat.com, teigland@redhat.com, 
+To: Eric Dumazet <edumazet@kernel.org>
+Cc: netdev-bot+sashiko@kernel.org, davem@davemloft.net, kuba@kernel.org, 
+	pabeni@redhat.com, horms@kernel.org, ncardwell@google.com, kuniyu@google.com, 
+	edumazet@google.com, netdev@vger.kernel.org, teigland@redhat.com, 
 	gfs2@lists.linux.dev, john.fastabend@gmail.com, jakub@cloudflare.com, 
 	sd@queasysnail.net, jiayuan.chen@linux.dev, matttbe@kernel.org, 
 	martineau@kernel.org, geliang@kernel.org, mptcp@lists.linux.dev, 
@@ -65,31 +90,46 @@ Cc: davem@davemloft.net, kuba@kernel.org, pabeni@redhat.com, horms@kernel.org,
 	kbusch@kernel.org, hch@lst.de, sagi@grimberg.me, kch@nvidia.com, 
 	linux-nvme@lists.infradead.org, idryomov@gmail.com, amarkuze@redhat.com, 
 	slava@dubeyko.com, ceph-devel@vger.kernel.org
+X-Mimecast-Spam-Score: 0
+X-Mimecast-MFC-PROC-ID: asBGkpCSWyMlKKfYS2ajO33bao-bRA8-afxr5iVE9hQ_1790950034
+X-Mimecast-Originator: redhat.com
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
-On Fri, Oct 2, 2026 at 3:19=E2=80=AFAM <netdev-bot+sashiko@kernel.org> wrot=
-e:
->
-> Thank you for your contribution! Sashiko AI review found 2 potential
-> issue(s) to consider.
->
-> Critical: 0 =C2=B7 High: 1 =C2=B7 Medium: 0 =C2=B7 Low: 1
->
-> If you believe none of the issues are legitimate, please reply to each
-> issue of Medium severity or higher and explain why the AI is wrong.
-> If any of them are legitimate and you plan to respin, please let patchwor=
-k
-> know by including "pw-bot: cr" as a separate line at the end of your repl=
-y
-> (one such reply per series is enough).
->
-> - [High] A TCP reset or TCP timeout while the connection is waiting for
->   send space can stall the dlm connection permanently.
+Hi,
 
-I dunno if I want to spend time fixing all dlm bugs.
+On Fri, Oct 2, 2026 at 4:33=E2=80=AFAM Eric Dumazet <edumazet@kernel.org> w=
+rote:
+>
+> On Fri, Oct 2, 2026 at 3:19=E2=80=AFAM <netdev-bot+sashiko@kernel.org> wr=
+ote:
+> >
+> > Thank you for your contribution! Sashiko AI review found 2 potential
+> > issue(s) to consider.
+> >
+> > Critical: 0 =C2=B7 High: 1 =C2=B7 Medium: 0 =C2=B7 Low: 1
+> >
+> > If you believe none of the issues are legitimate, please reply to each
+> > issue of Medium severity or higher and explain why the AI is wrong.
+> > If any of them are legitimate and you plan to respin, please let patchw=
+ork
+> > know by including "pw-bot: cr" as a separate line at the end of your re=
+ply
+> > (one such reply per series is enough).
+> >
+> > - [High] A TCP reset or TCP timeout while the connection is waiting for
+> >   send space can stall the dlm connection permanently.
+>
+> I dunno if I want to spend time fixing all dlm bugs.
+>
+> It seems TCP changes are now stuck because ood pre-existing bugs in
+> in-kernel-users.
+>
+> Sad.
 
-It seems TCP changes are now stuck because ood pre-existing bugs in
-in-kernel-users.
+I will take a look into it and cc netdev people.
 
-Sad.
+Thanks.
+
+- Alex
+
