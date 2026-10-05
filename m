@@ -1,135 +1,113 @@
-Received: from us-smtp-delivery-124.mimecast.com (us-smtp-delivery-124.mimecast.com [170.10.133.124])
+Received: from smtp.kernel.org (aws-us-west-2-korg-mail-alma10-1.taild15c8.ts.net [100.103.45.18])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id C5CD931716D
-	for <drbd-dev@lists.linux.dev>; Fri,  2 Oct 2026 14:07:31 +0000 (UTC)
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=170.10.133.124
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 0367344CF52;
+	Mon,  5 Oct 2026 23:30:13 +0000 (UTC)
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=100.103.45.18
 ARC-Seal:i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
-	t=1790950053; cv=none; b=ZKVfEI6rUd9/rBfLH8Pk/RYyX4QHKtqFIY+e0eSi6gUd2kGidtp5dSisvyC2r230SHWKL2JRaDP6MG8/ePux6Troa+ujr3Qqyr62ElKRj6U4QWfvDt6s1eSwmOndGWmhqcIqR/9HrBf1Fn16chwO816LoGCX61nWKQB+z0292Jo=
+	t=1791243015; cv=none; b=FhOQbiBg3sNFGlfF3pTpGhY2ZsUuorQtNprXWwoXJkVk44JitsGn5RJMY2xouYCTtkxNymtVXguLCw24a+vQMnls0vBtsiDNAPhqNLz68DHyBYAqW1tnLayyHJme2liR8G1f0boaY1mnXMA2gKKJR31T0ZZeC63CKS9emkE8OJY=
 ARC-Message-Signature:i=1; a=rsa-sha256; d=subspace.kernel.org;
-	s=arc-20240116; t=1790950053; c=relaxed/simple;
-	bh=yfDvPO4H/mIRlRzgF1ehHxShRFO4ABWe5fq0yL3+cMs=;
-	h=MIME-Version:References:In-Reply-To:From:Date:Message-ID:Subject:
-	 To:Cc:Content-Type; b=Dt7/MhVGyEbl0kIJGMocUfBouaKTZxaPgN2+0nTknIy30IynYFaponSTybxCHhTKR9PXBXpD9UVgPmo/quUhBS6IKR+RvpKp5HaoO6/TT69hbavuYcg4d0Bg2mPWaZgkS9Cgm8IzOAdK9H7SNhVy4UF/SdJiTG+Sj74xtcw2XVs=
-ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=pass (p=quarantine dis=none) header.from=redhat.com; spf=pass smtp.mailfrom=redhat.com; dkim=pass (1024-bit key) header.d=redhat.com header.i=@redhat.com header.b=WBVhT5rw; arc=none smtp.client-ip=170.10.133.124
-Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=quarantine dis=none) header.from=redhat.com
-Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=redhat.com
+	s=arc-20240116; t=1791243015; c=relaxed/simple;
+	bh=6XLeBHow2Pcci0n51TIHatXIIa0VAS2+TXe5xcWQ4kA=;
+	h=Content-Type:MIME-Version:Subject:From:Message-Id:Date:References:
+	 In-Reply-To:To:Cc; b=IQPTWsg53UeZDswppiOaXQtBBJZWVPPzDQcLFhumJQn0DJzaRcIGoKCgqsvtBBrnQD0By1DOcVkyOsR3aTMhM1Tj1kx/rZEkjJ/Jm7u0w/KgsOb9HP28lMx0uFfyWcKj/7hNcBUH5eCgmQ+FfGTPAAQerW9pYKyz9FTbhGhds/g=
+ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dkim=pass (2048-bit key) header.d=kernel.org header.i=@kernel.org header.b=QowSKdTg; arc=none smtp.client-ip=100.103.45.18
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (1024-bit key) header.d=redhat.com header.i=@redhat.com header.b="WBVhT5rw"
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=redhat.com;
-	s=mimecast20190719; t=1790950048;
-	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
-	 to:to:cc:cc:mime-version:mime-version:content-type:content-type:
-	 content-transfer-encoding:content-transfer-encoding:
-	 in-reply-to:in-reply-to:references:references;
-	bh=XDp0RcD7HYWUzlsOLtsxZUXX4GvVdXcns7B6N4dcr9I=;
-	b=WBVhT5rwOdZcRwMf62UJKbSAoR6AtfyRmasAtmZTvE6G/l8cN/+UJAjyxYsRovPsAsF9RJ
-	HzpvUdOVuYAzKMc4n1RAiBwuu4y5ZCf4b4VpW6xoM389rocIOeS5rTAcL0JbD8zHduAj7I
-	Ih1wrvqw7jCemc4OFehVzcPl/gs7Cg8=
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com
- [209.85.208.199]) by relay.mimecast.com with ESMTP with STARTTLS
- (version=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384) id
- us-mta-122-ENCnU--oPUq3kGZQ6n84ug-1; Fri, 02 Oct 2026 10:07:20 -0400
-X-MC-Unique: ENCnU--oPUq3kGZQ6n84ug-1
-X-Mimecast-MFC-AGG-ID: ENCnU--oPUq3kGZQ6n84ug_1790950034
-Received: by mail-lj1-f199.google.com with SMTP id 38308e7fff4ca-3a767a22ca6so385171fa.1
-        for <drbd-dev@lists.linux.dev>; Fri, 02 Oct 2026 07:07:17 -0700 (PDT)
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20260707; t=1790950034; x=1791554834;
-        h=content-transfer-encoding:content-type:cc:to:subject:message-id
-         :date:from:in-reply-to:references:mime-version:x-gm-gg
-         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to
-         :content-type;
-        bh=XDp0RcD7HYWUzlsOLtsxZUXX4GvVdXcns7B6N4dcr9I=;
-        b=x2p84/OJoSHnfgqJT1+dUfy/mhkUaySJpO+c4aSJxDbszL72sWhunVSzwIMIgBnU0u
-         4eYeKYaEDgj2DZyWMLXYpX5jqwNHfbzETO4CMLTSWoScZ+ppq48dnaK1fDHZNXi9NLJ/
-         PtbnVMd9j/qns4RY3Ipg5klC2OsR7wwSeljD1lDgeAb3YeExdXU/5hTKccrgP1RVD1J+
-         DMDW32+O585yOayofJdI8jhzgMrunzZ+LcoBmprMvj3ybqHW545jAGiE3hJR+LQkAcz9
-         nj3wZnfQYLN9HbrVyRcIDMjVsY//0SzRcW6X2ibYrv/umj9rCyGti4gUenvQReIWUt/N
-         POGw==
-X-Forwarded-Encrypted: i=1; AKwUvByCTgcqCr80I39sRaAFQFhlo0joOjgq+WC/ES7pSDfvdC+NWGkJvlRij7E+ugZTHky78WjsgKNgGw==@lists.linux.dev
-X-Gm-Message-State: AFq9FYISyZRPeJ8H8qJAGMjNJ0pPk7Altl4lDp1Mw2bRZbQZmjowi+Fo
-	Vn/y9QaeHHCuP0Yu2V2HYz7xFkjCx14e2CgqfkdiJOLhYnmlTxWnFUROsHLXkybtb8pBg88yBtp
-	Sc/Qm0oktVc3thVywLEOEiokh74rE2fS8UntAdnBY6ctYHVQ9OSqEjsLNUVm5wcYEHW6dLIMiIx
-	HbInSWg/eWn8jswrhP3gYM3v3IegjrxPeI6EA=
-X-Gm-Gg: AYBFou0YlmdDKpF1CvJnrBtmrl29iYuKH4zZwn1N0qBTfq19x5GCE/SUzY+i7PfPUJq
-	pvfC3ep9hBzsZw1sqB1QnELN0AIZ4UsdAPbDBLC1wfpUVteIKjFeAdQ6FQSjLoCmKtRHFbQxonl
-	XtV2CcjtTdMzwhZ5OLy7cFsejrzcgW/ILWoXUSgLQ6GQm45gXNnHiBzZ+E
-X-Received: by 2002:a2e:bc24:0:b0:3a6:95a:52a6 with SMTP id 38308e7fff4ca-3a8877b72d8mr7514601fa.20.1790950033938;
-        Fri, 02 Oct 2026 07:07:13 -0700 (PDT)
-X-Received: by 2002:a2e:bc24:0:b0:3a6:95a:52a6 with SMTP id
- 38308e7fff4ca-3a8877b72d8mr7514081fa.20.1790950033516; Fri, 02 Oct 2026
- 07:07:13 -0700 (PDT)
+	dkim=pass (2048-bit key) header.d=kernel.org header.i=@kernel.org header.b="QowSKdTg"
+Received: by smtp.kernel.org (Postfix) with ESMTPSA id 452681F000FF;
+	Mon,  5 Oct 2026 23:30:13 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=kernel.org;
+	s=k20260515; t=1791243013;
+	bh=SmEheTWh0J3/BQpX78BoIhroKKmwa4bnJ1PAI32f3F8=;
+	h=Subject:From:Date:References:In-Reply-To:To:Cc;
+	b=QowSKdTglffOCMECbjuqpAMyBjSXe0IwVe2eeCPRlbiPFr8CUDY2rnL5/c0wwX+u2
+	 FK6woTdZrstoZC0cokzBWn1TFSI1m8PNX3EaxwdhSw7YKX6W/HJdK16A0vEFMupZF5
+	 xygIzUXPVlc8yi1qcvJt/uri3Uzz3xNJolOxe+4VqU7nhzJbS0kPUjJaEsKvIR5EPP
+	 pn3qbFkaAQI68vdXFigt/222laEsF0AJ8H0H2YMIoyMLv8jJLRzvhhbQBUnawfKlEW
+	 gC0f8trnGlCXpLbQVNG8/W35ZRw1rCfB6IdkoZ9YFj5CMcD8u6ghZAZBCG/wIzu+IG
+	 +KZdLHtzzZZow==
+Received: from [10.30.226.235] (localhost [IPv6:::1])
+	by aws-us-west-2-korg-oddjob-rhel9-1.codeaurora.org (Postfix) with ESMTP id 3A23A392667F;
+	Mon,  5 Oct 2026 23:30:13 +0000 (UTC)
+Content-Type: text/plain; charset="utf-8"
 Precedence: bulk
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
 List-Subscribe: <mailto:drbd-dev+subscribe@lists.linux.dev>
 List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 MIME-Version: 1.0
-References: <20260929071743.23624-2-edumazet@kernel.org> <179090395863.434549.3668493667259120759@kernel.org>
- <CAL4WiipAe11BJA0rs33_0=bzYXMr0qQvQMPc+6-awyFQdQ1yCA@mail.gmail.com>
-In-Reply-To: <CAL4WiipAe11BJA0rs33_0=bzYXMr0qQvQMPc+6-awyFQdQ1yCA@mail.gmail.com>
-From: Alexander Aring <aahringo@redhat.com>
-Date: Fri, 2 Oct 2026 10:07:01 -0400
-X-Gm-Features: AclHuK_sfowi4LPKpSWl8IXP3uRNzWbqORQfvYROS9BqQto16BFcN8kPZWF14yQ
-Message-ID: <CAK-6q+ga-MNEXgENToB2hLB9jzpsGMrz-1sOo7WQP5M-scnAxg@mail.gmail.com>
-Subject: Re: [PATCH v3 net-next 1/9] dlm: fix send buffer backpressure handling
+Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH v3 net-next 0/9] tcp: avoid struct socket cache line miss
+ in
+ tcp_check_space()
+From: patchwork-bot+netdevbpf@kernel.org
+Message-Id: 
+ <179124301177.1937173.6611394010312791388.git-patchwork-notify@kernel.org>
+Date: Mon, 05 Oct 2026 23:30:11 +0000
+References: <20260929071743.23624-1-edumazet@kernel.org>
+In-Reply-To: <20260929071743.23624-1-edumazet@kernel.org>
 To: Eric Dumazet <edumazet@kernel.org>
-Cc: netdev-bot+sashiko@kernel.org, davem@davemloft.net, kuba@kernel.org, 
-	pabeni@redhat.com, horms@kernel.org, ncardwell@google.com, kuniyu@google.com, 
-	edumazet@google.com, netdev@vger.kernel.org, teigland@redhat.com, 
-	gfs2@lists.linux.dev, john.fastabend@gmail.com, jakub@cloudflare.com, 
-	sd@queasysnail.net, jiayuan.chen@linux.dev, matttbe@kernel.org, 
-	martineau@kernel.org, geliang@kernel.org, mptcp@lists.linux.dev, 
-	guwen@linux.alibaba.com, dust.li@linux.alibaba.com, alibuda@linux.alibaba.com, 
-	cel@kernel.org, jlayton@kernel.org, neil@brown.name, okorniev@redhat.com, 
-	Dai.Ngo@oracle.com, tom@talpey.com, trondmy@kernel.org, anna@kernel.org, 
-	linux-nfs@vger.kernel.org, achender@kernel.org, rds-devel@oss.oracle.com, 
-	philipp.reisner@linbit.com, lars.ellenberg@linbit.com, 
-	christoph.boehmwalder@linbit.com, axboe@kernel.dk, drbd-dev@lists.linux.dev, 
-	kbusch@kernel.org, hch@lst.de, sagi@grimberg.me, kch@nvidia.com, 
-	linux-nvme@lists.infradead.org, idryomov@gmail.com, amarkuze@redhat.com, 
-	slava@dubeyko.com, ceph-devel@vger.kernel.org
-X-Mimecast-Spam-Score: 0
-X-Mimecast-MFC-PROC-ID: asBGkpCSWyMlKKfYS2ajO33bao-bRA8-afxr5iVE9hQ_1790950034
-X-Mimecast-Originator: redhat.com
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Cc: davem@davemloft.net, kuba@kernel.org, pabeni@redhat.com, horms@kernel.org,
+ ncardwell@google.com, kuniyu@google.com, edumazet@google.com,
+ netdev@vger.kernel.org, aahringo@redhat.com, teigland@redhat.com,
+ gfs2@lists.linux.dev, john.fastabend@gmail.com, jakub@cloudflare.com,
+ sd@queasysnail.net, jiayuan.chen@linux.dev, matttbe@kernel.org,
+ martineau@kernel.org, geliang@kernel.org, mptcp@lists.linux.dev,
+ guwen@linux.alibaba.com, dust.li@linux.alibaba.com,
+ alibuda@linux.alibaba.com, cel@kernel.org, jlayton@kernel.org,
+ neil@brown.name, okorniev@redhat.com, Dai.Ngo@oracle.com, tom@talpey.com,
+ trondmy@kernel.org, anna@kernel.org, linux-nfs@vger.kernel.org,
+ achender@kernel.org, rds-devel@oss.oracle.com, philipp.reisner@linbit.com,
+ lars.ellenberg@linbit.com, christoph.boehmwalder@linbit.com, axboe@kernel.dk,
+ drbd-dev@lists.linux.dev, kbusch@kernel.org, hch@lst.de, sagi@grimberg.me,
+ kch@nvidia.com, linux-nvme@lists.infradead.org, idryomov@gmail.com,
+ amarkuze@redhat.com, slava@dubeyko.com, ceph-devel@vger.kernel.org
 
-Hi,
+Hello:
 
-On Fri, Oct 2, 2026 at 4:33=E2=80=AFAM Eric Dumazet <edumazet@kernel.org> w=
-rote:
->
-> On Fri, Oct 2, 2026 at 3:19=E2=80=AFAM <netdev-bot+sashiko@kernel.org> wr=
-ote:
-> >
-> > Thank you for your contribution! Sashiko AI review found 2 potential
-> > issue(s) to consider.
-> >
-> > Critical: 0 =C2=B7 High: 1 =C2=B7 Medium: 0 =C2=B7 Low: 1
-> >
-> > If you believe none of the issues are legitimate, please reply to each
-> > issue of Medium severity or higher and explain why the AI is wrong.
-> > If any of them are legitimate and you plan to respin, please let patchw=
-ork
-> > know by including "pw-bot: cr" as a separate line at the end of your re=
-ply
-> > (one such reply per series is enough).
-> >
-> > - [High] A TCP reset or TCP timeout while the connection is waiting for
-> >   send space can stall the dlm connection permanently.
->
-> I dunno if I want to spend time fixing all dlm bugs.
->
-> It seems TCP changes are now stuck because ood pre-existing bugs in
-> in-kernel-users.
->
-> Sad.
+This series was applied to netdev/net-next.git (main)
+by Jakub Kicinski <kuba@kernel.org>:
 
-I will take a look into it and cc netdev people.
+On Tue, 29 Sep 2026 07:17:34 +0000 you wrote:
+> tcp_check_space() is called on every incoming ACK and every transmitted
+> packet, and tests SOCK_NOSPACE in sk->sk_socket->flags.  Because struct
+> socket lives in its own cache line and the TCP fast paths do not touch
+> it for anything else, that test pulls in an extra cache line that is
+> cold when the working set of active sockets is large.
+> 
+> This series mirrors SOCK_NOSPACE into a new u8 field, tp->tcp_nospace,
+> placed right after tp->chrono_type in the tcp_sock_write_tx cache line
+> group (fitting in an existing 3-byte hole before chrono_start, so no
+> other field moves and sizeof(struct tcp_sock) is unchanged).  Both the
+> transmit and ACK fast paths already touch that cache line, making the
+> fast-path test in tcp_check_space() free of extra cache misses while
+> keeping __tcp_check_space() authoritative on SOCK_NOSPACE.
+> 
+> [...]
 
-Thanks.
+Here is the summary with links:
+  - [v3,net-next,1/9] dlm: fix send buffer backpressure handling
+    https://git.kernel.org/netdev/net-next/c/e234d7625598
+  - [v3,net-next,2/9] net: add sk_set_nospace() and sk_clear_nospace()
+    https://git.kernel.org/netdev/net-next/c/6ba48a271bdb
+  - [v3,net-next,3/9] sunrpc: use sk_set_nospace() and sk_clear_nospace()
+    https://git.kernel.org/netdev/net-next/c/28613c4d4757
+  - [v3,net-next,4/9] rds: use sk_set_nospace()
+    https://git.kernel.org/netdev/net-next/c/b747807ccaf9
+  - [v3,net-next,5/9] dlm: use sk_set_nospace() and sk_clear_nospace()
+    https://git.kernel.org/netdev/net-next/c/0e0be63cb35d
+  - [v3,net-next,6/9] drbd: use sk_set_nospace()
+    https://git.kernel.org/netdev/net-next/c/24280d1d2832
+  - [v3,net-next,7/9] nvme-tcp: use sk_clear_nospace()
+    https://git.kernel.org/netdev/net-next/c/f80fa2ddfe95
+  - [v3,net-next,8/9] libceph: use sk_clear_nospace()
+    https://git.kernel.org/netdev/net-next/c/5181ac617537
+  - [v3,net-next,9/9] tcp: add tp->tcp_nospace
+    https://git.kernel.org/netdev/net-next/c/4eee6d58ad14
 
-- Alex
+You are awesome, thank you!
+-- 
+Deet-doot-dot, I am a bot.
+https://korg.docs.kernel.org/patchwork/pwbot.html
+
 
