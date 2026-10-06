@@ -1,65 +1,65 @@
-Received: from mail-wr1-f42.google.com (mail-wr1-f42.google.com [209.85.221.42])
+Received: from mail-wm1-f45.google.com (mail-wm1-f45.google.com [209.85.128.45])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 77C104A0EEC
-	for <drbd-dev@lists.linux.dev>; Tue,  6 Oct 2026 15:46:30 +0000 (UTC)
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=209.85.221.42
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 52DC94A2617
+	for <drbd-dev@lists.linux.dev>; Tue,  6 Oct 2026 15:46:34 +0000 (UTC)
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=209.85.128.45
 ARC-Seal:i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
-	t=1791301598; cv=none; b=p0lCeSMKAHa4YFcjVznz/eNI6UiEmJiIDNDeTsWs2rG8BzeALdrW+N5FC8iYZOQ67TQvOPhKMAi8z1t7jRMFpSD4At27GCbC52x/wk2imF/B0a3truSsXmVHSPoQJgUFNyaztmwyWEfb7bJdYbay+M8R2nyfuYgKiaj1WwKoFHY=
+	t=1791301600; cv=none; b=ArsJnWJLfy7/Rq6ix3fAj8Mh9J8zbo2smLW6EBxcQPZGGB0z1jYYDWnC7ezbgs+M//RwwcMwBq6DtdFO9Eh4rPCmcmYmxemIY3xwIrz+yIZRpWZSA5QjC6SPDu4V+eS6dUFfjNLyyrIJNyt/E7vIgV3+3FUzk8aEsYW58Y9ScAo=
 ARC-Message-Signature:i=1; a=rsa-sha256; d=subspace.kernel.org;
-	s=arc-20240116; t=1791301598; c=relaxed/simple;
-	bh=G1IshJelWIOaYkZqO0DPAaRbSKJmXZ1G4pz0OD7rUCE=;
+	s=arc-20240116; t=1791301600; c=relaxed/simple;
+	bh=fsK3s6p4G4g76OIBIFLsNyPHRivMRY61Ye5SxEa5Tpk=;
 	h=From:To:Cc:Subject:Date:Message-ID:In-Reply-To:References:
-	 MIME-Version:Content-Type; b=OrB/qHUPEd3oIW70qbOM4El74PhaUd6iYhphHV+fMdOua6H3Z50TI8EtCsasO058uJiOJtt9na9R0JUx/fPAkEL/b4HWRDoOLhAnKgXS6NJg30CxvagVu3d1ZQ3s6ogYxuaDHls8K6jqGfXQmIEoTasdx+ShQFiwU0NfbLPO7W8=
-ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com; spf=pass smtp.mailfrom=linbit.com; dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.b=Dew4QIMP; arc=none smtp.client-ip=209.85.221.42
+	 MIME-Version:Content-Type; b=U6o1RG8AiUmoN7WKE4/xQOCR8tBHq2SFjG96l5MjhVFZ8BfZCx8WuQrpcGE8EO4d5RMoXiZnQ5UR1CKrYHo8l6e1Z4bfz+/n3hSj4bOThI0+d9CW97pzIM2hlRtXPikQYSitpJPEssdqUGoZfM4XwGk8UCHmH2Z7vAMf8PfD/C4=
+ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com; spf=pass smtp.mailfrom=linbit.com; dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.b=PpoV0zDy; arc=none smtp.client-ip=209.85.128.45
 Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com
 Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=linbit.com
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.b="Dew4QIMP"
-Received: by mail-wr1-f42.google.com with SMTP id ffacd0b85a97d-48b0584ad71so699243f8f.0
-        for <drbd-dev@lists.linux.dev>; Tue, 06 Oct 2026 08:46:30 -0700 (PDT)
+	dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.b="PpoV0zDy"
+Received: by mail-wm1-f45.google.com with SMTP id 5b1f17b1804b1-4a0286c981dso27749455e9.2
+        for <drbd-dev@lists.linux.dev>; Tue, 06 Oct 2026 08:46:34 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linbit.com; s=google; t=1791301588; x=1791906388; darn=lists.linux.dev;
+        d=linbit.com; s=google; t=1791301593; x=1791906393; darn=lists.linux.dev;
         h=content-transfer-encoding:content-type:mime-version:references
          :in-reply-to:message-id:date:subject:cc:to:from:from:to:cc:subject
          :date:message-id:reply-to:content-type;
-        bh=SlUDCX5N6lUOdKEmTlH2AExT6ty+noWd1gTRjJLbXBE=;
-        b=Dew4QIMPtTgdKgpFC3ghfX++fPLlwdN7E5quiOlaKUqEXKVhR8uJ+G+Zl2t7tyYu8Y
-         EnWMTxntrGfw6PSHxfWzkFI0rLzZr5xDDdYO0YU8R4Rl/bKRGKW4u3oQgLd/FJ96vidL
-         x1PjEJImk0vZVYgKMO9DbNV0zbP0fbcHqFfAQEZmOuCnbSROBsr35TXVDnUfQTPy8Ld2
-         UW0j6PkPpFCOs+qvGbaVatZqsm9/+hDpPIuN4lan5RqQ1cVpANMP2wLlfQVPozAGAE4U
-         NyWaWtOR7jDvW1OdhkeFBUcRVZs6kEav8tyXz+uLq3UPGnf5kOIneoXsaxuTqQjwuAho
-         hn+A==
+        bh=hf4Zn+k6/L8hRgqhaknJpMXKvSTX4D8RfZC+9pLM/xQ=;
+        b=PpoV0zDy9RvsCyGo8Q9O4cR+h2n8Rd71Dp9B8uVKidfhGyJ+PwLEIQLcEuNfRC/hSH
+         //yLVkmK0PgB7271hYLKCGEhiednqc1U4elifSKdN01soQt2rb708jDR86c6HMerWCOK
+         aY4/VrCyVdqeCzVTNJ/R+muZEpcdoRgLWcx9EcNq3etonOQ/QtOtB0DWNl0IDVIBihA8
+         QBoyWu7l07yo32iVvC4HVHVhKXW25/RaeG0YDM3syfi3Q6tS6gQys/oPI2Kx5h6rUgO6
+         v3oQ2o0APZ3XDJuTIBv5NdbuuQ8EgUr/CNRCfRUS73CPS58ElEbchgmjIEf+W9vByEWM
+         Kq4g==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20260707; t=1791301588; x=1791906388;
+        d=1e100.net; s=20260707; t=1791301593; x=1791906393;
         h=content-transfer-encoding:content-type:mime-version:references
          :in-reply-to:message-id:date:subject:cc:to:from:x-gm-gg
          :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to
          :content-type;
-        bh=SlUDCX5N6lUOdKEmTlH2AExT6ty+noWd1gTRjJLbXBE=;
-        b=PN4BT8VXv8HNh80q5dzfpFss8xgvFqUmxEiAWZ47LrMRYmGdpI3cmZmc1f+0ZFxvxH
-         3Rzqmi3gqmCusuJmCqXm/Wyv7nAzprpO5s7alemhLcfzgZn5SnGTDT1NhhwdUID9eRET
-         mkGwVpByca+G7DY/0Kv8Kx6XY8U5sx9WK+WEP2BlwwxJz9xf7oza/uhYJeKY3TPL//C6
-         Tc5jIm2Sci0cAd8vQCuKctQpMfB5cAzaGn9SuSIhvTjfud2f4peScx9tSO5iETdS4rgg
-         hz9i38Unt7XI/jRvNKpXFT7c9G5wA92CbXTtxo/VKWwM1ZJHrAuf9MnVYLRs27p2G9oW
-         fjng==
-X-Forwarded-Encrypted: i=1; AKwUvByXtUqTtrN0usJ0nmpX2mn+R2M9YDsSP9nT7Besx7MEHqALhnKR4AduAdaaeVb9Iy/DbkR5U0FmuA==@lists.linux.dev
-X-Gm-Message-State: AFuF++nBLscXPXpD/GcY9qjzCGDOi9lYtBftVKYwRgih6d6eUBbkzWxu
-	bJJYxvAbLdwjQY2SrmlHmheGu/FyC272lYtTpxyt3yrA8wj9caw/5eSoe/kG6g+sUpU=
-X-Gm-Gg: AYBFou33BwST30iKddi70z1tE9b6a/katEb1nZBRSjH8MfHjWCCLxj8Tbw6ijCKMYWj
-	jlQ1j/429GUly7iW2ItSZM8sVMGf2rKcLMypL8/5Aed36C72aqXA1x6T5H6qTVR7NcbXIR3X/gq
-	O8NkCUdabWwgzl6ORsmY2BflhwxpcBDZCTcT2pC3MMBT+a+7lvjmYcoROZ7thg5FS4cou9rb+/9
-	beMFywWaxBnR41ohuGXZ4AqUkrQiuJEB2Su17BQoV/sSyuHuJDqoLicleR0+L7R0ux4nblFSS1d
-	R9mjzQbGo4oUVNPMW0z4hJ+YyiJTtrWvH8jVHfC07SviXzjl3+aVZPPiSsr22DqE0UeOemdQZP/
-	tBsjv4wWvEz279X0Nq0bpKXta99ragOiz8WUAnsk9Ok22KkAQgi++Xp/bbmrCO6ZkKw35nqc32I
-	lSh6uG3gFmrBOCMumirQkumxqijUj8tN1HdftUZOAmUMdF16jDgYIHgqygSeMjtD8BOxhhYIncJ
-	na8xPTKE9yqsVvyGHTUhgj05d5/9bgP
-X-Received: by 2002:a05:600c:8b08:b0:49f:fe7e:dc61 with SMTP id 5b1f17b1804b1-4a17b4b6c75mr34070195e9.0.1791301587298;
-        Tue, 06 Oct 2026 08:46:27 -0700 (PDT)
+        bh=hf4Zn+k6/L8hRgqhaknJpMXKvSTX4D8RfZC+9pLM/xQ=;
+        b=pHPD5rIIk3BpgixBGFX1kgKGQaxchO8vGrehU0VEbqMyo+STQGvNqrQ+IOYDiUf80m
+         1JLREKA5mNCs1MXUrk9VwyStZrDPYe6uV8xlxRjjwSyLv2aCSPGFz5mpfexanWhCAGg2
+         kNXE68AmcD4yCk9PayEFhCl7QZKJs0GULa2l+h662QbOOQSMifTYp0gACXjIZjzpk3UQ
+         u5WFbINR663aelVvyReCu/usYwmyZ1OEVRZzKOyYTWOr3QTmmMhYw9PglcqNNsEp+p/S
+         COdPaGXDyltGJ/DNiySLPzqoYKzLYTXrTH4xSq/AIEBs/ZQT+dzV+2nIQP/BECI0a0UM
+         Oulw==
+X-Forwarded-Encrypted: i=1; AKwUvBxX52TDCpL6xAg+HHay+4yv8pLpu5YPY6pg37+1FfwYdx/RQxxVPoar3XyYeJjfxqDNv9bQaX16jw==@lists.linux.dev
+X-Gm-Message-State: AFuF++llCLEdSwqyEpw3KcrS7L1doYfF5eaOQVcYYJo3Dfabs0RPXxz/
+	UYUbM6Uf2nCFZ1wmPopNbmQn71gTe17AaaUlZ4xCkDECiKxTfvJ6Z/CAjJACx+zJCNI=
+X-Gm-Gg: AYBFou0TjDG7QMHandyTGgBuuvN5xb0oh+kOiJuF/y7GK3r5FMPh1oWRBLJdqxa3MUc
+	NVVxk60mM5Mo/BpXjiwFXADWf1Ka4AGIDjzTPCt/tFlKN2y1gT8IeYpRgGck9GyTfu17a4pg93G
+	BepmpgwTChLbDyfWbaYTg6v+pY4FYx4qR0waA4S6fzobfQqpQ/KIfAhV6EBhsT89CMTygxtfrsK
+	lSAxGv69SGxldsxelPQKeW4hJCJ8ReIbjia/fuweFNFV99Pw4mtcZ3eDU+izHBCw5nHhasO5t4w
+	2lsS+Y6Ns9q1nVZr8Pc+q43aKaMVuC7ynDkgoJo6fladiwAOPxsLcvtiSSmqYXt4oCE3U/8KEju
+	9hBUDrscaenxfHnEbgYEmOwMPd9Kv79WelVJrzi7JhRorJfxhv66yVPYjACC+v7cUvWaUZG+J9E
+	YnhVxV88FrjQbzqEjZ03X5ujBzAL+IbKXz/MUuXzRJ0PpdZ/DQQATeDdrTx6kFMwkIBxVHtrW4D
+	GvJtPx/f/fLE3VnR8yqlXz1W3n4aYM6
+X-Received: by 2002:a05:600c:a201:b0:4a0:1c0e:b136 with SMTP id 5b1f17b1804b1-4a17b55b243mr20542695e9.29.1791301592735;
+        Tue, 06 Oct 2026 08:46:32 -0700 (PDT)
 Received: from localhost.localdomain ([2001:4bc9:b00f:d376:7c33:9a50:ef33:f391])
-        by smtp.gmail.com with ESMTPSA id 5b1f17b1804b1-4a178c5b9d6sm72087205e9.13.2026.10.06.08.46.25
+        by smtp.gmail.com with ESMTPSA id 5b1f17b1804b1-4a178c5b9d6sm72087205e9.13.2026.10.06.08.46.30
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Tue, 06 Oct 2026 08:46:26 -0700 (PDT)
+        Tue, 06 Oct 2026 08:46:31 -0700 (PDT)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
 Cc: Philipp Reisner <philipp.reisner@linbit.com>,
@@ -68,13 +68,11 @@ Cc: Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-block@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>,
-	Roland Kammerer <roland.kammerer@linbit.com>,
-	=?UTF-8?q?Moritz=20Wanzenb=C3=B6ck?= <moritz.wanzenboeck@linbit.com>,
-	Joel Colledge <joel.colledge@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>
-Subject: [PATCH v2 05/20] drbd: add TCP transport implementation
-Date: Tue,  6 Oct 2026 17:45:52 +0200
-Message-ID: <20261006154607.3936501-6-christoph.boehmwalder@linbit.com>
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Joel Colledge <joel.colledge@linbit.com>
+Subject: [PATCH v2 07/20] drbd: add optional compatibility layer for DRBD 8.4
+Date: Tue,  6 Oct 2026 17:45:54 +0200
+Message-ID: <20261006154607.3936501-8-christoph.boehmwalder@linbit.com>
 X-Mailer: git-send-email 2.55.0
 In-Reply-To: <20261006154607.3936501-1-christoph.boehmwalder@linbit.com>
 References: <20261006154607.3936501-1-christoph.boehmwalder@linbit.com>
@@ -87,1818 +85,861 @@ MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
-Add the TCP transport implementation as a standalone kernel module
-(drbd_transport_tcp) that registers itself with the DRBD transport
-abstraction layer.
-This extracts TCP replication details to a separate component
-rather than being hard-wired in the main module, so alternative
-transports can coexist and be selected at runtime.
+Introduce a Kconfig option, DRBD_COMPAT_84, that enables a
+self-contained source module that encapsulates everything needed to
+interoperate with the userspace and on-disk formats of DRBD 8.4 (the
+version that has been shipped with the kernel until now).
 
-The implementation manages two independent sockets per peer connection
-(data and control streams) and supports dynamic path add/remove while a
-connection is live. This is the foundation for DRBD 9 multi-path
-operation.
-It also integrates kernel-native TLS via the in-kernel handshake API,
-enabling encrypted replication.
+This ensures compatibility with existing userspace tooling is kept.
 
-Co-developed-by: Roland Kammerer <roland.kammerer@linbit.com>
-Signed-off-by: Roland Kammerer <roland.kammerer@linbit.com>
+The main DRBD code is deliberately kept as clean as possible from any
+backward compatibility hacks, so that this acts as the "main switch" for
+enabling compatibility with old DRBD userspace utilities.
+
 Co-developed-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
-Co-developed-by: Moritz Wanzenböck <moritz.wanzenboeck@linbit.com>
-Signed-off-by: Moritz Wanzenböck <moritz.wanzenboeck@linbit.com>
-Co-developed-by: Joel Colledge <joel.colledge@linbit.com>
-Signed-off-by: Joel Colledge <joel.colledge@linbit.com>
 Co-developed-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+Co-developed-by: Joel Colledge <joel.colledge@linbit.com>
+Signed-off-by: Joel Colledge <joel.colledge@linbit.com>
 Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 ---
- drivers/block/drbd/Kconfig              |   11 +
- drivers/block/drbd/Makefile             |    1 +
- drivers/block/drbd/drbd_transport_tcp.c | 1746 +++++++++++++++++++++++
- 3 files changed, 1758 insertions(+)
- create mode 100644 drivers/block/drbd/drbd_transport_tcp.c
+ drivers/block/drbd/Kconfig          |  26 ++
+ drivers/block/drbd/Makefile         |   1 +
+ drivers/block/drbd/drbd_legacy_84.c | 641 ++++++++++++++++++++++++++++
+ drivers/block/drbd/drbd_legacy_84.h | 129 ++++++
+ 4 files changed, 797 insertions(+)
+ create mode 100644 drivers/block/drbd/drbd_legacy_84.c
+ create mode 100644 drivers/block/drbd/drbd_legacy_84.h
 
 diff --git a/drivers/block/drbd/Kconfig b/drivers/block/drbd/Kconfig
-index ab0bf1b7eb7d..49b75cbe1def 100644
+index 49b75cbe1def..1b8b3f6efc1b 100644
 --- a/drivers/block/drbd/Kconfig
 +++ b/drivers/block/drbd/Kconfig
-@@ -72,3 +72,14 @@ config DRBD_FAULT_INJECTION
- 		echo 5 > /sys/module/drbd/parameters/fault_rate
+@@ -83,3 +83,29 @@ config BLK_DEV_DRBD_TCP
+ 	  for DRBD replication over TCP/IP networks.
  
- 	  If unsure, say N.
+ 	  If unsure, say Y.
 +
-+config BLK_DEV_DRBD_TCP
-+	tristate "DRBD TCP transport"
++config DRBD_COMPAT_84
++	bool "Enable legacy (8.4) /proc/drbd and metadata compatibility"
 +	depends on BLK_DEV_DRBD
-+	default BLK_DEV_DRBD
++	default y
 +	help
 +
-+	  TCP transport support for DRBD. This is the standard transport
-+	  for DRBD replication over TCP/IP networks.
++	  This option enables the DRBD-8.4 style representation of
++	  DRBD devices in /proc/drbd. With DRBD 9.0, released in 2015,
++	  we deprecated this interface. The replacement is `drbdsetup
++	  status [--json] <resname>`. The new interface is optionally
++	  machine-readable, extensible, and scales to 1000s of
++	  resources. The deprecated interface had issues with all
++	  three areas.
++	  At the same time, this option also enables the DRBD driver
++	  to read and write the deprecated 8.4 version of the
++	  metadata.
++	  Only when you create a DRBD resource in the legacy way
++	  `drbdsetup new-resource <resname>` (no node-id positional
++	  argument), then the resource is put into legacy mode, and
++	  shows up in /proc/drbd, is capable of reading and writing
++	  the 8.4 metadata, and can have only a single peer. Without
++	  this compile-time option, creating a resource without a node
++	  ID is not possible.
 +
 +	  If unsure, say Y.
 diff --git a/drivers/block/drbd/Makefile b/drivers/block/drbd/Makefile
-index d4fa578325dc..9f05f74e619c 100644
+index 8ec1ad360449..f184b99d6a93 100644
 --- a/drivers/block/drbd/Makefile
 +++ b/drivers/block/drbd/Makefile
-@@ -8,3 +8,4 @@ drbd-y += drbd_transport.o
+@@ -7,6 +7,7 @@ drbd-y += drbd_nl_gen.o
+ drbd-y += drbd_transport.o
+ drbd-$(CONFIG_DEV_DAX_PMEM) += drbd_dax_pmem.o
  drbd-$(CONFIG_DEBUG_FS) += drbd_debugfs.o
++drbd-$(CONFIG_DRBD_COMPAT_84) += drbd_legacy_84.o
  
  obj-$(CONFIG_BLK_DEV_DRBD)     += drbd.o
-+obj-$(CONFIG_BLK_DEV_DRBD_TCP) += drbd_transport_tcp.o
-diff --git a/drivers/block/drbd/drbd_transport_tcp.c b/drivers/block/drbd/drbd_transport_tcp.c
+ obj-$(CONFIG_BLK_DEV_DRBD_TCP) += drbd_transport_tcp.o
+diff --git a/drivers/block/drbd/drbd_legacy_84.c b/drivers/block/drbd/drbd_legacy_84.c
 new file mode 100644
-index 000000000000..897d2e101eb1
+index 000000000000..0c2f0851f58a
 --- /dev/null
-+++ b/drivers/block/drbd/drbd_transport_tcp.c
-@@ -0,0 +1,1746 @@
++++ b/drivers/block/drbd/drbd_legacy_84.c
+@@ -0,0 +1,641 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
-+ * Copyright (C) 2014, LINBIT HA-Solutions GmbH.
++ * Copyright (C) 2025, LINBIT HA-Solutions GmbH.
 + */
 +
-+#include <linux/module.h>
-+#include <linux/errno.h>
-+#include <linux/socket.h>
-+#include <linux/pkt_sched.h>
-+#include <linux/sched/signal.h>
-+#include <linux/net.h>
-+#include <linux/skbuff.h>
-+#include <linux/file.h>
-+#include <linux/tcp.h>
-+#include <linux/highmem.h>
-+#include <linux/bio.h>
-+#include <linux/drbd.h>
-+#include "drbd_nl_types.h"
-+#include "drbd_config.h"
-+#include <linux/tls.h>
-+#include <net/tcp.h>
-+#include <net/handshake.h>
-+#include <net/tls.h>
-+#include <net/tls_prot.h>
-+#include "drbd_protocol.h"
-+#include "drbd_transport.h"
++#include "drbd_legacy_84.h"
++#include "drbd_meta_data.h"
 +
-+
-+MODULE_AUTHOR("Philipp Reisner <philipp.reisner@linbit.com>");
-+MODULE_AUTHOR("Lars Ellenberg <lars.ellenberg@linbit.com>");
-+MODULE_AUTHOR("Roland Kammerer <roland.kammerer@linbit.com>");
-+MODULE_DESCRIPTION("TCP (SDP, SSOCKS) transport layer for DRBD");
-+MODULE_LICENSE("GPL");
-+MODULE_VERSION(REL_VERSION);
-+
-+/* TCP keepalive has proven to be vital in many deployment scenarios.
-+ * Without keepalive, after a device has seen a sufficiently long period of
-+ * idle time, packets on our "bulk data" socket may be dropped because an
-+ * overly "smart" network infrastructure decided that TCP session was stale.
-+ * Note that we don't try to use this to detect "broken" tcp sessions here,
-+ * these will still be handled by the DRBD effective network timeout via
-+ * timeout / ko-count settings.
-+ * We use this to try to keep "idle" TCP sessions "alive".
-+ * Default to send a probe every 23 seconds.
++/* MDF_84_* masks and the flags table they encode are declared in
++ * drbd_legacy_84.h, shared with drbd_nl_84.c (GET_STATUS's disk_flags).
 + */
-+#define DRBD_KEEP_IDLE	23
-+#define DRBD_KEEP_INTVL 23
-+#define DRBD_KEEP_CNT	9
-+static unsigned int drbd_keepcnt = DRBD_KEEP_CNT;
-+module_param_named(keepcnt, drbd_keepcnt, uint, 0664);
-+MODULE_PARM_DESC(keepcnt, "see tcp(7) tcp_keepalive_probes; set TCP_KEEPCNT for data sockets; default: 9");
-+static unsigned int drbd_keepidle = DRBD_KEEP_IDLE;
-+module_param_named(keepidle, drbd_keepidle, uint, 0664);
-+MODULE_PARM_DESC(keepidle, "see tcp(7) tcp_keepalive_time; set TCP_KEEPIDLE for data sockets; default: 23s");
-+static unsigned int drbd_keepintvl = DRBD_KEEP_INTVL;
-+module_param_named(keepintvl, drbd_keepintvl, uint, 0664);
-+MODULE_PARM_DESC(keepintvl, "see tcp(7) tcp_keepalive_intvl; set TCP_KEEPINTVL for data sockets; default: 23s");
 +
-+static struct workqueue_struct *dtt_csocket_recv;
++struct meta_data_on_disk_84 {
++	u64 la_size_sect;      /* last agreed size. */
++	u64 uuid[UI_SIZE];   /* UUIDs. */
++	u64 device_uuid;
++	u64 reserved_u64_1;
++	u32 flags;             /* MDF */
++	u32 magic;
++	u32 md_size_sect;
++	u32 al_offset;         /* offset to this block */
++	u32 al_nr_extents;     /* important for restoring the AL (userspace) */
++	      /* `-- act_log->nr_elements <-- ldev->dc.al_extents */
++	u32 bm_offset;         /* offset to the bitmap, from here */
++	u32 bm_bytes_per_bit;  /* 4k. Treat as magic number, must keep it compatible. */
++	u32 la_peer_max_bio_size;   /* last peer max_bio_size */
 +
-+struct buffer {
-+	void *base;
-+	void *pos;
++	/* see al_tr_number_to_on_disk_sector() */
++	u32 al_stripes;
++	u32 al_stripe_size_4k;
++
++	u8 reserved_u8[4096 - (7*8 + 10*4)];
++} __packed;
++
++
++static const char * const drbd_conn_s_names[] = {
++	[C_STANDALONE]       = "StandAlone",
++	[C_DISCONNECTING]    = "Disconnecting",
++	[C_UNCONNECTED]      = "Unconnected",
++	[C_TIMEOUT]          = "Timeout",
++	[C_BROKEN_PIPE]      = "BrokenPipe",
++	[C_NETWORK_FAILURE]  = "NetworkFailure",
++	[C_PROTOCOL_ERROR]   = "ProtocolError",
++	[C_CONNECTING]       = "WFConnection",
++	/* [C_WF_REPORT_PARAMS] = "WFReportParams", does no longer exist in drbd-9.x */
++	[C_TEAR_DOWN]        = "TearDown",
++	[C_CONNECTED]        = "WFReportParams", /* drbd-8.4 for "Negotiating" or "Off" */
++	[L_ESTABLISHED]      = "Connected",
++	[L_STARTING_SYNC_S]  = "StartingSyncS",
++	[L_STARTING_SYNC_T]  = "StartingSyncT",
++	[L_WF_BITMAP_S]      = "WFBitMapS",
++	[L_WF_BITMAP_T]      = "WFBitMapT",
++	[L_WF_SYNC_UUID]     = "WFSyncUUID",
++	[L_SYNC_SOURCE]      = "SyncSource",
++	[L_SYNC_TARGET]      = "SyncTarget",
++	[L_PAUSED_SYNC_S]    = "PausedSyncS",
++	[L_PAUSED_SYNC_T]    = "PausedSyncT",
++	[L_VERIFY_S]         = "VerifyS",
++	[L_VERIFY_T]         = "VerifyT",
++	[L_AHEAD]            = "Ahead",
++	[L_BEHIND]           = "Behind",
 +};
 +
-+#define DTT_CONNECTING 1
-+#define DTT_DATA_READY_ARMED 2
-+
-+struct drbd_tcp_transport {
-+	struct drbd_transport transport; /* Must be first! */
-+	spinlock_t control_recv_lock;
-+	unsigned long flags;
-+	struct socket *stream[2];
-+	struct buffer rbuf[2];
-+	struct timer_list control_timer;
-+	struct work_struct control_data_ready_work;
-+	void (*original_control_sk_state_change)(struct sock *sk);
-+	void (*original_control_sk_data_ready)(struct sock *sk);
-+	wait_queue_head_t wait; /* woken if a connection came in on any of our paths */
-+};
-+
-+struct dtt_listener {
-+	struct drbd_listener listener;
-+	void (*original_sk_state_change)(struct sock *sk);
-+	struct socket *s_listen;
-+};
-+
-+/* Since each path might have a different local IP address, each
-+   path might need its own listener. Therefore the drbd_waiter object
-+   is embedded into the dtt_path and _not_ the dtt_waiter. */
-+
-+struct dtt_socket_container {
-+	struct list_head list;
-+	struct socket *socket;
-+};
-+
-+struct dtt_path {
-+	struct drbd_path path;
-+
-+	struct list_head sockets; /* sockets passed to me by other receiver threads */
++static const char write_ordering_chars[] = {
++	[WO_NONE] = 'n',
++	[WO_DRAIN_IO] = 'd',
++	[WO_BDEV_FLUSH] = 'f',
++	[WO_BIO_BARRIER] = 'b',
 +};
 +
 +
-+static int dtt_init(struct drbd_transport *transport);
-+static void dtt_free(struct drbd_transport *transport, enum drbd_tr_free_op free_op);
-+static void dtt_socket_free(struct socket **sock);
-+static int dtt_init_listener(struct drbd_transport *transport, const struct sockaddr *addr,
-+			     struct net *net, struct drbd_listener *drbd_listener);
-+static void dtt_destroy_listener(struct drbd_listener *generic_listener);
-+static int dtt_prepare_connect(struct drbd_transport *transport);
-+static int dtt_connect(struct drbd_transport *transport);
-+static void dtt_finish_connect(struct drbd_transport *transport);
-+static int dtt_recv(struct drbd_transport *transport, enum drbd_stream stream, void **buf, size_t size, int flags);
-+static int dtt_recv_bio(struct drbd_transport *transport, struct bio_list *bios, size_t size,
-+			unsigned int *misalign_bits);
-+static void dtt_stats(struct drbd_transport *transport, struct drbd_transport_stats *stats);
-+static int dtt_net_conf_change(struct drbd_transport *transport,
-+			       struct drbd_net_conf *new_net_conf);
-+static void dtt_set_rcvtimeo(struct drbd_transport *transport, enum drbd_stream stream, long timeout);
-+static long dtt_get_rcvtimeo(struct drbd_transport *transport, enum drbd_stream stream);
-+static int dtt_send_page(struct drbd_transport *transport, enum drbd_stream, struct page *page,
-+		int offset, size_t size, unsigned int msg_flags);
-+static int dtt_send_bio(struct drbd_transport *, struct bio *bio, unsigned int msg_flags);
-+static bool dtt_stream_ok(struct drbd_transport *transport, enum drbd_stream stream);
-+static bool dtt_hint(struct drbd_transport *transport, enum drbd_stream stream, enum drbd_tr_hints hint);
-+static void dtt_debugfs_show(struct drbd_transport *transport, struct seq_file *m);
-+static void dtt_update_congested(struct drbd_tcp_transport *tcp_transport);
-+static int dtt_add_path(struct drbd_path *path);
-+static bool dtt_may_remove_path(struct drbd_path *);
-+static void dtt_remove_path(struct drbd_path *);
-+static void dtt_control_timer_fn(struct timer_list *t);
++static int seq_print_device_proc_drbd(struct seq_file *m, struct drbd_device *device);
 +
-+static struct drbd_transport_class tcp_transport_class = {
-+	.name = "tcp",
-+	.instance_size = sizeof(struct drbd_tcp_transport),
-+	.path_instance_size = sizeof(struct dtt_path),
-+	.listener_instance_size = sizeof(struct dtt_listener),
-+	.ops = (struct drbd_transport_ops) {
-+		.init = dtt_init,
-+		.free = dtt_free,
-+		.init_listener = dtt_init_listener,
-+		.release_listener = dtt_destroy_listener,
-+		.prepare_connect = dtt_prepare_connect,
-+		.connect = dtt_connect,
-+		.finish_connect = dtt_finish_connect,
-+		.recv = dtt_recv,
-+		.recv_bio = dtt_recv_bio,
-+		.stats = dtt_stats,
-+		.net_conf_change = dtt_net_conf_change,
-+		.set_rcvtimeo = dtt_set_rcvtimeo,
-+		.get_rcvtimeo = dtt_get_rcvtimeo,
-+		.send_page = dtt_send_page,
-+		.send_bio = dtt_send_bio,
-+		.stream_ok = dtt_stream_ok,
-+		.hint = dtt_hint,
-+		.debugfs_show = dtt_debugfs_show,
-+		.add_path = dtt_add_path,
-+		.may_remove_path = dtt_may_remove_path,
-+		.remove_path = dtt_remove_path,
-+	},
-+	.module = THIS_MODULE,
-+	.list = LIST_HEAD_INIT(tcp_transport_class.list),
-+};
++atomic_t nr_drbd8_devices;
 +
-+static int dtt_init(struct drbd_transport *transport)
++void drbd_md_decode_84(struct meta_data_on_disk_84 *on_disk, struct drbd_md *md)
 +{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	enum drbd_stream i;
++	struct drbd_peer_md *peer_md;
++	const int peer_node_id = 0; /* setup_node_ids_84() moves it later */
++	u32 on_disk_flags;
++	unsigned long flags;
++	int i;
 +
-+	spin_lock_init(&tcp_transport->control_recv_lock);
-+	init_waitqueue_head(&tcp_transport->wait);
-+	tcp_transport->transport.class = &tcp_transport_class;
-+	for (i = DATA_STREAM; i <= CONTROL_STREAM ; i++) {
-+		void *buffer = (void *)__get_free_page(GFP_KERNEL);
-+		if (!buffer)
-+			goto fail;
-+		tcp_transport->rbuf[i].base = buffer;
-+		tcp_transport->rbuf[i].pos = buffer;
++	md->effective_size = be64_to_cpu(on_disk->la_size_sect);
++	md->current_uuid = be64_to_cpu(on_disk->uuid[UI_CURRENT]);
++	md->prev_members = 0;
++	md->prev_features = 0; /* no features field in the drbd-8.4 meta-data */
++	md->device_uuid = be64_to_cpu(on_disk->device_uuid);
++	md->md_size_sect = be32_to_cpu(on_disk->md_size_sect);
++	md->al_offset = be32_to_cpu(on_disk->al_offset);
++
++	md->bm_offset = be32_to_cpu(on_disk->bm_offset);
++
++	on_disk_flags = be32_to_cpu(on_disk->flags);
++	md->flags = on_disk_flags & MDF_84_MASK;
++
++	md->max_peers = 1;
++	md->bm_block_size = be32_to_cpu(on_disk->bm_bytes_per_bit);
++	md->node_id = -1; /* no node_id in the drbd-8.4 meta-data */
++	md->al_stripes = be32_to_cpu(on_disk->al_stripes);
++	md->al_stripe_size_4k = be32_to_cpu(on_disk->al_stripe_size_4k);
++
++
++	for (i = 0; i < DRBD_NODE_ID_MAX; i++) {
++		peer_md = &md->peers[i];
++
++		peer_md->bitmap_uuid = 0;
++		peer_md->bitmap_dagtag = 0;
++		peer_md->flags = 0;
++		peer_md->bitmap_index = -1;
 +	}
-+	timer_setup(&tcp_transport->control_timer, dtt_control_timer_fn, 0);
++
++	peer_md = &md->peers[peer_node_id];
++	peer_md->bitmap_index = 0;
++
++	flags = (on_disk_flags & MDF_84_PEER_MASK) | MDF_HAVE_BITMAP;
++	flags |= on_disk_flags & MDF_84_PEER_OUTDATED ? MDF_PEER_OUTDATED : 0;
++	flags |= on_disk_flags & MDF_84_CONNECTED_IND ? MDF_PEER_CONNECTED : 0;
++	peer_md->flags = flags;
++	/* An 8.4 bitmap fully records the divergence; set the UUID (and its
++	 * divergence flag) after the other flags so it is not overwritten.
++	 */
++	drbd_set_peer_bitmap_uuid(peer_md, be64_to_cpu(on_disk->uuid[UI_BITMAP]), 0);
++
++
++	for (i = UI_HISTORY_START; i < UI_HISTORY_END; i++)
++		md->history_uuids[i - UI_HISTORY_START] = be64_to_cpu(on_disk->uuid[i]);
++}
++
++void drbd_md_encode_84(struct drbd_device *device, struct meta_data_on_disk_84 *buffer)
++{
++	struct drbd_md *md = &device->ldev->md;
++	int peer_node_id = !md->node_id;
++	struct drbd_peer_md *peer_md = &md->peers[peer_node_id];
++	u32 flags = (md->flags & MDF_84_MASK) | (peer_md->flags & MDF_84_PEER_MASK);
++	int i;
++
++	if (device->bitmap == NULL)
++		flags |= MDF_PEER_FULL_SYNC;
++
++	flags |= test_bit(__MDF_PEER_OUTDATED, &peer_md->flags) ? MDF_84_PEER_OUTDATED : 0;
++	flags |= test_bit(__MDF_PEER_CONNECTED, &peer_md->flags) ? MDF_84_CONNECTED_IND : 0;
++	buffer->la_size_sect = cpu_to_be64(md->effective_size);
++	buffer->device_uuid = cpu_to_be64(md->device_uuid);
++	buffer->uuid[UI_CURRENT] = cpu_to_be64(md->current_uuid);
++	buffer->uuid[UI_BITMAP] = cpu_to_be64(peer_md->bitmap_uuid);
++	for (i = UI_HISTORY_START; i < UI_HISTORY_END; i++)
++		buffer->uuid[i] = cpu_to_be64(md->history_uuids[i - UI_HISTORY_START]);
++	buffer->reserved_u64_1 = 0;
++	buffer->flags = cpu_to_be32(flags);
++	buffer->magic = cpu_to_be32(DRBD_MD_MAGIC_84_UNCLEAN);
++	buffer->md_size_sect = cpu_to_be32(md->md_size_sect);
++	buffer->al_offset = cpu_to_be32(md->al_offset);
++	buffer->al_nr_extents = cpu_to_be32(device->act_log->nr_elements);
++	buffer->bm_offset = cpu_to_be32(md->bm_offset);
++	buffer->bm_bytes_per_bit = cpu_to_be32(BM_BLOCK_SIZE_4k); /* treat as magic number */
++	buffer->la_peer_max_bio_size = cpu_to_be32(device->device_conf.max_bio_size);
++
++	buffer->al_stripes = cpu_to_be32(md->al_stripes);
++	buffer->al_stripe_size_4k = cpu_to_be32(md->al_stripe_size_4k);
++}
++
++
++/*
++ * This is DRBD 8 userspace compatibility mode, so we do not have a node ID
++ * yet. We derive our own node ID from the peer node ID. drbdsetup gives us the
++ * peer-node-id, which it determines by comparing the IP addresses.
++ */
++int drbd_setup_node_ids_84(struct drbd_connection *connection, struct drbd_path *path,
++			    unsigned int peer_node_id)
++{
++	int vnr, my_node_id, nr_legacy = 0, nr_v9 = 0;
++	struct drbd_resource *resource = connection->resource;
++	struct drbd_peer_device *peer_device;
++	struct drbd_device *device;
++
++	my_node_id = !peer_node_id;
++	idr_for_each_entry(&resource->devices, device, vnr) {
++		if (test_bit(LEGACY_84_MD, &device->flags)) {
++			nr_legacy++;
++		} else {
++			nr_v9++;
++			if (get_ldev(device)) {
++				int md_my_node_id = device->ldev->md.node_id;
++
++				put_ldev(device);
++				if (my_node_id != md_my_node_id) {
++					drbd_err(connection, "inconsistent node_ids %d %d\n",
++						 my_node_id, md_my_node_id);
++					return -ENOTUNIQ;
++				}
++			}
++		}
++	}
++
++	if (nr_legacy && nr_v9)
++		drbd_warn(connection, "legacy-84 and drbd-9 metadata in one resource\n");
++
++	drbd_info(connection, "drbd8 userspace compat mode: setting my node id to %d\n",
++		  my_node_id);
++
++	/* setting up all node_ids*/
++	resource->res_opts.node_id = my_node_id;
++	connection->peer_node_id = peer_node_id;
++	idr_for_each_entry(&resource->devices, device, vnr) {
++		peer_device = list_first_entry_or_null(&device->peer_devices,
++						       struct drbd_peer_device, peer_devices);
++		peer_device->node_id = peer_node_id;
++		peer_device->bitmap_index = 0;
++
++		if (get_ldev(device)) {
++			const struct drbd_peer_md clear = { .bitmap_index = -1 };
++			struct drbd_md *md = &device->ldev->md;
++			struct drbd_peer_md *to = &md->peers[peer_node_id];
++			int i;
++
++			md->node_id = my_node_id;
++
++			for (i = 0; i < DRBD_NODE_ID_MAX; i++) {
++				struct drbd_peer_md *from = &md->peers[i];
++
++				if (from->bitmap_index != -1) {
++					if (from != to) {
++						*to = *from;
++						*from = clear;
++					}
++					break;
++				}
++			}
++			put_ldev(device);
++		}
++	}
 +
 +	return 0;
-+fail:
-+	free_page((unsigned long)tcp_transport->rbuf[0].base);
-+	return -ENOMEM;
-+}
-+
-+static void dtt_free(struct drbd_transport *transport, enum drbd_tr_free_op free_op)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	enum drbd_stream i;
-+	struct drbd_path *drbd_path;
-+	/* free the socket specific stuff,
-+	 * mutexes are handled by caller */
-+
-+	clear_bit(DTT_DATA_READY_ARMED, &tcp_transport->flags);
-+
-+	if (tcp_transport->control_data_ready_work.func) {
-+		cancel_work_sync(&tcp_transport->control_data_ready_work);
-+		tcp_transport->control_data_ready_work.func = NULL;
-+	}
-+
-+	if (tcp_transport->stream[CONTROL_STREAM] &&
-+	    tcp_transport->original_control_sk_state_change) {
-+		write_lock_bh(&tcp_transport->stream[CONTROL_STREAM]->sk->sk_callback_lock);
-+		tcp_transport->stream[CONTROL_STREAM]->sk->sk_state_change =
-+			tcp_transport->original_control_sk_state_change;
-+		write_unlock_bh(&tcp_transport->stream[CONTROL_STREAM]->sk->sk_callback_lock);
-+	}
-+
-+	synchronize_rcu();
-+	for (i = DATA_STREAM; i <= CONTROL_STREAM; i++) {
-+		dtt_socket_free(&tcp_transport->stream[i]);
-+	}
-+
-+	list_for_each_entry(drbd_path, &transport->paths, list) {
-+		bool was_established = test_and_clear_bit(TR_ESTABLISHED, &drbd_path->flags);
-+
-+		if (free_op == CLOSE_CONNECTION && was_established)
-+			drbd_path_event(transport, drbd_path);
-+	}
-+
-+	timer_delete_sync(&tcp_transport->control_timer);
-+
-+	if (free_op == DESTROY_TRANSPORT) {
-+		for (i = DATA_STREAM; i <= CONTROL_STREAM; i++) {
-+			free_page((unsigned long)tcp_transport->rbuf[i].base);
-+			tcp_transport->rbuf[i].base = NULL;
-+		}
-+	}
-+}
-+
-+static int _dtt_send(struct drbd_tcp_transport *tcp_transport, struct socket *socket,
-+		      void *buf, size_t size, unsigned msg_flags)
-+{
-+	struct kvec iov;
-+	struct msghdr msg;
-+	int rv, sent = 0;
-+
-+	iov.iov_base = buf;
-+	iov.iov_len  = size;
-+
-+	msg.msg_name       = NULL;
-+	msg.msg_namelen    = 0;
-+	msg.msg_control    = NULL;
-+	msg.msg_controllen = 0;
-+	msg.msg_flags      = msg_flags | MSG_NOSIGNAL;
-+
-+	do {
-+		rv = kernel_sendmsg(socket, &msg, &iov, 1, iov.iov_len);
-+		if (rv == -EAGAIN) {
-+			struct drbd_transport *transport = &tcp_transport->transport;
-+			enum drbd_stream stream =
-+				tcp_transport->stream[DATA_STREAM] == socket ?
-+					DATA_STREAM : CONTROL_STREAM;
-+
-+			if (drbd_stream_send_timed_out(transport, stream))
-+				break;
-+			else
-+				continue;
-+		}
-+		if (rv < 0)
-+			break;
-+		sent += rv;
-+		iov.iov_base += rv;
-+		iov.iov_len  -= rv;
-+	} while (sent < size);
-+
-+	if (rv <= 0)
-+		return rv;
-+
-+	return sent;
-+}
-+
-+static int dtt_recv_short(struct socket *socket, void *buf, size_t size, int flags)
-+{
-+	struct kvec iov = {
-+		.iov_base = buf,
-+		.iov_len = size,
-+	};
-+	union {
-+		struct cmsghdr cmsg;
-+		u8 buf[CMSG_SPACE(sizeof(u8))];
-+	} u;
-+	struct msghdr msg = {
-+		.msg_control = &u,
-+		.msg_controllen = sizeof(u),
-+	};
-+	int ret;
-+
-+	flags = flags ? flags : MSG_WAITALL | MSG_NOSIGNAL;
-+
-+	ret = kernel_recvmsg(socket, &msg, &iov, 1, size, flags);
-+
-+	if (msg.msg_controllen != sizeof(u)) {
-+		u8 level, description;
-+
-+		switch (tls_get_record_type(socket->sk, &u.cmsg)) {
-+		case 0:
-+			fallthrough;
-+		case TLS_RECORD_TYPE_DATA:
-+			break;
-+		case TLS_RECORD_TYPE_ALERT:
-+			tls_alert_recv(socket->sk, &msg, &level, &description);
-+			ret = (level == TLS_ALERT_LEVEL_FATAL) ? -EACCES : -EAGAIN;
-+			break;
-+		default:
-+			/* discard this record type */
-+			ret = -EAGAIN;
-+			break;
-+		}
-+	}
-+
-+	return ret;
-+}
-+
-+static int dtt_recv(struct drbd_transport *transport, enum drbd_stream stream, void **buf, size_t size, int flags)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	struct socket *socket = tcp_transport->stream[stream];
-+	void *buffer;
-+	int rv;
-+
-+	if (!socket)
-+		return -ENOTCONN;
-+
-+	if (flags & CALLER_BUFFER) {
-+		buffer = *buf;
-+		rv = dtt_recv_short(socket, buffer, size, flags & ~CALLER_BUFFER);
-+	} else if (flags & GROW_BUFFER) {
-+		TR_ASSERT(transport, *buf == tcp_transport->rbuf[stream].base);
-+		buffer = tcp_transport->rbuf[stream].pos;
-+		TR_ASSERT(transport, (buffer - *buf) + size <= PAGE_SIZE);
-+
-+		rv = dtt_recv_short(socket, buffer, size, flags & ~GROW_BUFFER);
-+	} else {
-+		buffer = tcp_transport->rbuf[stream].base;
-+
-+		rv = dtt_recv_short(socket, buffer, size, flags);
-+		if (rv > 0)
-+			*buf = buffer;
-+	}
-+
-+	if (rv > 0)
-+		tcp_transport->rbuf[stream].pos = buffer + rv;
-+
-+	return rv;
 +}
 +
 +
-+static int dtt_recv_bio(struct drbd_transport *transport, struct bio_list *bios, size_t size,
-+			unsigned int *misalign_bits)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	struct socket *socket = tcp_transport->stream[DATA_STREAM];
-+	size_t remaining = size;
-+	struct page *page;
-+	int err;
-+
-+	*misalign_bits = 0;
-+	if (!socket)
-+		return -ENOTCONN;
-+
-+	do {
-+		size_t len;
-+
-+		page = drbd_alloc_pages(transport, GFP_KERNEL, remaining);
-+		if (!page)
-+			return -ENOMEM;
-+		len = min(PAGE_SIZE << compound_order(page), remaining);
-+
-+		err = dtt_recv_short(socket, page_address(page), len, 0);
-+		if (err <= 0)
-+			goto fail;
-+		remaining -= err;
-+		err = drbd_bio_add_page(transport, bios, page, len, 0);
-+		if (err < 0)
-+			goto fail;
-+	} while (remaining > 0);
-+
-+	return size;
-+
-+fail:
-+	drbd_free_page(transport, page);
-+	return err;
-+}
-+
-+static void dtt_stats(struct drbd_transport *transport, struct drbd_transport_stats *stats)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+
-+	struct socket *socket = tcp_transport->stream[DATA_STREAM];
-+
-+	if (socket) {
-+		struct sock *sk = socket->sk;
-+		struct tcp_sock *tp = tcp_sk(sk);
-+
-+		stats->unread_received = tp->rcv_nxt - tp->copied_seq;
-+		stats->unacked_send = tp->write_seq - tp->snd_una;
-+		stats->send_buffer_size = sk->sk_sndbuf;
-+		stats->send_buffer_used = sk->sk_wmem_queued;
-+	}
-+}
-+
-+static void dtt_setbufsize(struct socket *socket, unsigned int snd,
-+			   unsigned int rcv)
-+{
-+	struct sock *sk = socket->sk;
-+
-+	/* open coded SO_SNDBUF, SO_RCVBUF */
-+	if (snd) {
-+		sk->sk_sndbuf = snd;
-+		sk->sk_userlocks |= SOCK_SNDBUF_LOCK;
-+		/* Wake up sending tasks if we upped the value. */
-+		sk->sk_write_space(sk);
-+	} else {
-+		sk->sk_userlocks &= ~SOCK_SNDBUF_LOCK;
-+	}
-+
-+	if (rcv) {
-+		sk->sk_rcvbuf = rcv;
-+		sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
-+	} else {
-+		sk->sk_userlocks &= ~SOCK_RCVBUF_LOCK;
-+	}
-+}
-+
-+static bool dtt_path_cmp_addr(struct dtt_path *path)
-+{
-+	struct drbd_path *drbd_path = &path->path;
-+	int addr_size;
-+
-+	addr_size = min(drbd_path->my_addr_len, drbd_path->peer_addr_len);
-+	return memcmp(&drbd_path->my_addr, &drbd_path->peer_addr, addr_size) > 0;
-+}
-+
-+/* Translate transient socket errors (connect timeout, peer reset, etc.)
-+ * to -EAGAIN so the caller restarts the connect cycle instead of treating
-+ * the error as fatal. Other errors are returned unchanged.
++/*
++ * Some resources may be operating in "DRBD 8 compatibility mode", where the
++ * user created the resource using the old drbd8-style drbdsetup command line
++ * syntax.
++ * This implies that the user probably also expects the old drbd8-style
++ * /proc/drbd output showing the device state.
++ * If the flag is set for a resource, we show the old-style output for that
++ * resource.
++ * If any resource is in DRBD 8 compatibility mode, this function returns true.
 + */
-+static int dtt_socket_err_to_eagain(int err)
++bool drbd_show_legacy_device(struct seq_file *seq, void *v)
 +{
-+	switch (err) {
-+	case -ETIMEDOUT:
-+	case -EINPROGRESS:
-+	case -EINTR:
-+	case -ERESTARTSYS:
-+	case -ECONNREFUSED:
-+	case -ECONNRESET:
-+	case -ENETUNREACH:
-+	case -EHOSTDOWN:
-+	case -EHOSTUNREACH:
-+		return -EAGAIN;
-+	default:
-+		return err;
-+	}
-+}
++	struct drbd_device *device;
++	int i, prev_i = -1;
 +
-+static int dtt_try_connect(struct dtt_path *path, struct socket **ret_socket)
-+{
-+	struct drbd_transport *transport = path->path.transport;
-+	const char *what;
-+	struct socket *socket;
-+	struct sockaddr_storage my_addr, peer_addr;
-+	struct drbd_net_conf *nc;
-+	int err;
-+	int sndbuf_size, rcvbuf_size, connect_int;
-+
-+	rcu_read_lock();
-+	nc = rcu_dereference(transport->net_conf);
-+	if (!nc) {
-+		rcu_read_unlock();
-+		return -EIO;
-+	}
-+	sndbuf_size = nc->sndbuf_size;
-+	rcvbuf_size = nc->rcvbuf_size;
-+	connect_int = nc->connect_int;
-+	rcu_read_unlock();
-+
-+	my_addr = path->path.my_addr;
-+	if (my_addr.ss_family == AF_INET6)
-+		((struct sockaddr_in6 *)&my_addr)->sin6_port = 0;
-+	else
-+		((struct sockaddr_in *)&my_addr)->sin_port = 0; /* AF_INET & AF_SCI */
-+
-+	/* In some cases, the network stack can end up overwriting
-+	   peer_addr.ss_family, so use a copy here. */
-+	peer_addr = path->path.peer_addr;
-+
-+	what = "sock_create_kern";
-+	err = sock_create_kern(path->path.net, my_addr.ss_family, SOCK_STREAM, IPPROTO_TCP, &socket);
-+	if (err < 0) {
-+		socket = NULL;
-+		goto out;
-+	}
-+
-+	socket->sk->sk_rcvtimeo =
-+	socket->sk->sk_sndtimeo = connect_int * HZ;
-+	dtt_setbufsize(socket, sndbuf_size, rcvbuf_size);
-+
-+	/* explicitly bind to the configured IP as source IP
-+	*  for the outgoing connections.
-+	*  This is needed for multihomed hosts and to be
-+	*  able to use lo: interfaces for drbd.
-+	* Make sure to use 0 as port number, so linux selects
-+	*  a free one dynamically.
-+	*/
-+	what = "bind before connect";
-+	err = socket->ops->bind(socket, (struct sockaddr_unsized *) &my_addr,
-+			path->path.my_addr_len);
-+	if (err < 0)
-+		goto out;
-+
-+	/* connect may fail, peer not yet available.
-+	 * stay C_CONNECTING, don't go Disconnecting! */
-+	what = "connect";
-+	err = socket->ops->connect(socket, (struct sockaddr_unsized *) &peer_addr,
-+				   path->path.peer_addr_len, 0);
-+	if (err < 0) {
-+		err = dtt_socket_err_to_eagain(err);
-+		if (err == -EINVAL)
-+			err = -EADDRNOTAVAIL;
-+	}
-+
-+out:
-+	if (err < 0) {
-+		if (socket)
-+			sock_release(socket);
-+		if (err != -EAGAIN && err != -EADDRNOTAVAIL)
-+			tr_err(transport, "%s failed, err = %d\n", what, err);
-+	} else {
-+		*ret_socket = socket;
-+	}
-+
-+	return err;
-+}
-+
-+typedef int (*tls_hello_func)(const struct tls_handshake_args *, gfp_t);
-+
-+struct tls_handshake_wait {
-+	struct completion done;
-+	int status;
-+};
-+
-+static void tls_handshake_done(void *data, int status, key_serial_t peerid)
-+{
-+	struct tls_handshake_wait *wait = data;
-+
-+	// Normalize the error to be negative: while the error _should_ be negative
-+	// it is not guaranteed: the netlink interface allows any u32 value, which is
-+	// then negated and cast to int, so who knows what will be returned.
-+	if (status > 0)
-+		status = -status;
-+
-+	wait->status = status;
-+	complete(&wait->done);
-+}
-+
-+static int tls_init_hello(struct socket *sock, const char *peername,
-+			  key_serial_t keyring, key_serial_t privkey,
-+			  key_serial_t certificate, tls_hello_func hello,
-+			  struct tls_handshake_wait *tls_wait)
-+{
-+	int err;
-+	struct tls_handshake_args tls_args = {
-+			.ta_sock = sock,
-+			.ta_done = tls_handshake_done,
-+			.ta_data = tls_wait,
-+			.ta_peername = peername,
-+			.ta_keyring = keyring,
-+			.ta_my_privkey = privkey,
-+			.ta_my_cert = certificate,
-+	};
-+
-+	if (IS_ERR(sock_alloc_file(sock, O_NONBLOCK, NULL)))
-+		return -EIO;
-+
-+	do {
-+		err = hello(&tls_args, GFP_KERNEL);
-+	} while (err == -EAGAIN);
-+
-+	return err;
-+}
-+
-+static int tls_wait_hello(struct tls_handshake_wait *csocket_tls_wait,
-+			  struct tls_handshake_wait *dsocket_tls_wait,
-+			  unsigned long timeout)
-+{
-+	unsigned long remaining = wait_for_completion_timeout(
-+		&csocket_tls_wait->done, timeout);
-+	if (!remaining)
-+		return -ETIMEDOUT;
-+
-+	if (!wait_for_completion_timeout(&dsocket_tls_wait->done, remaining))
-+		return -ETIMEDOUT;
-+
-+	if (csocket_tls_wait->status)
-+		return csocket_tls_wait->status;
-+
-+	return dsocket_tls_wait->status;
-+}
-+
-+
-+static int dtt_send_first_packet(struct drbd_tcp_transport *tcp_transport, struct socket *socket,
-+				 enum drbd_packet cmd)
-+{
-+	struct p_header80 h;
-+
-+	h.magic = cpu_to_be32(DRBD_MAGIC);
-+	h.command = cpu_to_be16(cmd);
-+	h.length = 0;
-+
-+	return _dtt_send(tcp_transport, socket, &h, sizeof(h), 0);
-+}
-+
-+/**
-+ * dtt_socket_free() - Free the socket
-+ * @socket:	pointer to the pointer to the socket.
-+ */
-+static void dtt_socket_free(struct socket **socket)
-+{
-+	if (!*socket)
-+		return;
-+
-+	tls_handshake_cancel((*socket)->sk);
-+	kernel_sock_shutdown(*socket, SHUT_RDWR);
-+
-+	if ((*socket)->file)
-+		sockfd_put((*socket));
-+	else
-+		sock_release(*socket);
-+
-+	*socket = NULL;
-+}
-+
-+/**
-+ * dtt_socket_ok_or_free() - Free the socket if its connection is not okay
-+ * @socket:	pointer to the pointer to the socket.
-+ */
-+static bool dtt_socket_ok_or_free(struct socket **socket)
-+{
-+	if (!*socket)
-+		return false;
-+
-+	if ((*socket)->sk->sk_state == TCP_ESTABLISHED)
-+		return true;
-+
-+	dtt_socket_free(socket);
-+	return false;
-+}
-+
-+static bool dtt_connection_established(struct drbd_transport *transport,
-+				       struct socket **socket1,
-+				       struct socket **socket2,
-+				       struct dtt_path **first_path)
-+{
-+	struct drbd_net_conf *nc;
-+	int timeout, good = 0;
-+
-+	if (!*socket1 || !*socket2)
++	if (!atomic_read(&nr_drbd8_devices))
 +		return false;
 +
 +	rcu_read_lock();
-+	nc = rcu_dereference(transport->net_conf);
-+	timeout = (nc->sock_check_timeo ?: nc->ping_timeo) * HZ / 10;
-+	rcu_read_unlock();
-+	schedule_timeout_interruptible(timeout);
-+
-+	good += dtt_socket_ok_or_free(socket1);
-+	good += dtt_socket_ok_or_free(socket2);
-+
-+	if (good == 0) {
-+		kref_put(&(*first_path)->path.kref, drbd_destroy_path);
-+		*first_path = NULL;
-+	}
-+
-+	return good == 2;
-+}
-+
-+static struct dtt_path *dtt_wait_connect_cond(struct drbd_transport *transport)
-+{
-+	struct drbd_listener *listener;
-+	struct drbd_path *drbd_path;
-+	struct dtt_path *path = NULL;
-+	bool rv = false;
-+
-+	rcu_read_lock();
-+	list_for_each_entry_rcu(drbd_path, &transport->paths, list) {
-+		path = container_of(drbd_path, struct dtt_path, path);
-+
-+		/* Pairs with xchg() in drbd_put_listener() */
-+		listener = READ_ONCE(drbd_path->listener);
-+		if (!listener)
++	idr_for_each_entry(&drbd_devices, device, i) {
++		if (!device->resource->res_opts.drbd8_compat_mode)
 +			continue;
 +
-+		spin_lock_bh(&listener->waiters_lock);
-+		rv = listener->pending_accepts > 0 || !list_empty(&path->sockets);
-+		spin_unlock_bh(&listener->waiters_lock);
++		if (prev_i != i - 1)
++			seq_putc(seq, '\n');
++		prev_i = i;
 +
-+		if (rv)
-+			break;
++		seq_print_device_proc_drbd(seq, device);
 +	}
-+	if (rv)
-+		kref_get(&path->path.kref);
 +	rcu_read_unlock();
-+
-+	return rv ? path : NULL;
++	return true;
 +}
 +
-+static void unregister_state_change(struct sock *sock, struct dtt_listener *listener)
++static void seq_printf_with_thousands_grouping(struct seq_file *seq, long v)
 +{
-+	write_lock_bh(&sock->sk_callback_lock);
-+	sock->sk_state_change = listener->original_sk_state_change;
-+	sock->sk_user_data = NULL;
-+	write_unlock_bh(&sock->sk_callback_lock);
-+}
-+
-+static int dtt_wait_for_connect(struct drbd_transport *transport,
-+				struct socket **socket,
-+				struct dtt_path **ret_path)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	struct dtt_socket_container *socket_c;
-+	struct sockaddr_storage peer_addr;
-+	int connect_int, err = 0;
-+	long timeo;
-+	struct socket *s_estab = NULL;
-+	struct drbd_net_conf *nc;
-+	struct drbd_path *drbd_path2;
-+	struct drbd_listener *drbd_listener;
-+	struct dtt_listener *listener;
-+	struct dtt_path *path = NULL;
-+
-+	/* Protect the listener from a concurrent del-path (drbd_put_listener()) */
-+	drbd_listener = drbd_listener_try_get_ref(&(*ret_path)->path);
-+	if (!drbd_listener)
-+		return -EAGAIN;
-+
-+	listener = container_of(drbd_listener, struct dtt_listener, listener);
-+
-+	rcu_read_lock();
-+	nc = rcu_dereference(transport->net_conf);
-+	if (!nc) {
-+		rcu_read_unlock();
-+		err = -EINVAL;
-+		goto out;
-+	}
-+	connect_int = nc->connect_int;
-+	rcu_read_unlock();
-+
-+	timeo = connect_int * HZ;
-+	timeo += get_random_u32_below(2) ? timeo / 7 : -timeo / 7; /* 28.5% random jitter */
-+
-+retry:
-+	if (path)
-+		kref_put(&path->path.kref, drbd_destroy_path);
-+	timeo = wait_event_interruptible_timeout(tcp_transport->wait,
-+			(path = dtt_wait_connect_cond(transport)),
-+			timeo);
-+	if (timeo <= 0) {
-+		err = -EAGAIN;
-+		goto out;
-+	}
-+
-+	spin_lock_bh(&listener->listener.waiters_lock);
-+	socket_c = list_first_entry_or_null(&path->sockets, struct dtt_socket_container, list);
-+	if (socket_c) {
-+		s_estab = socket_c->socket;
-+		list_del(&socket_c->list);
-+		kfree(socket_c);
-+	} else if (listener->listener.pending_accepts > 0) {
-+		listener->listener.pending_accepts--;
-+		spin_unlock_bh(&listener->listener.waiters_lock);
-+
-+		s_estab = NULL;
-+		err = kernel_accept(listener->s_listen, &s_estab, O_NONBLOCK);
-+		if (err < 0) {
-+			kref_put(&path->path.kref, drbd_destroy_path);
-+			goto out;
-+		}
-+
-+		/* The established socket inherits the sk_state_change callback
-+		   from the listening socket. */
-+		unregister_state_change(s_estab->sk, listener);
-+
-+		s_estab->ops->getname(s_estab, (struct sockaddr *)&peer_addr, 2);
-+
-+		spin_lock_bh(&listener->listener.waiters_lock);
-+		drbd_path2 = drbd_find_path_by_addr(&listener->listener, &peer_addr);
-+		if (!drbd_path2) {
-+			struct sockaddr_in6 *from_sin6;
-+			struct sockaddr_in *from_sin;
-+
-+			switch (peer_addr.ss_family) {
-+			case AF_INET6:
-+				from_sin6 = (struct sockaddr_in6 *)&peer_addr;
-+				tr_notice(transport, "Closing unexpected connection from "
-+				       "%pI6\n", &from_sin6->sin6_addr);
-+				break;
-+			default:
-+				from_sin = (struct sockaddr_in *)&peer_addr;
-+				tr_notice(transport, "Closing unexpected connection from "
-+					 "%pI4\n", &from_sin->sin_addr);
-+				break;
-+			}
-+
-+			goto retry_locked;
-+		}
-+		if (drbd_path2 != &path->path) {
-+			struct dtt_path *path2 =
-+				container_of(drbd_path2, struct dtt_path, path);
-+			struct drbd_tcp_transport *path2_tcp_transport =
-+				container_of(drbd_path2->transport,
-+					     struct drbd_tcp_transport, transport);
-+
-+			socket_c = kmalloc_obj(*socket_c, GFP_ATOMIC);
-+			if (!socket_c) {
-+				tr_info(transport, /* path2->transport, */
-+					"No mem, dropped an incoming connection\n");
-+				goto retry_locked;
-+			}
-+
-+			socket_c->socket = s_estab;
-+			s_estab = NULL;
-+			list_add_tail(&socket_c->list, &path2->sockets);
-+			wake_up(&path2_tcp_transport->wait);
-+			goto retry_locked;
-+		}
-+		if (s_estab->sk->sk_state != TCP_ESTABLISHED)
-+			goto retry_locked;
-+	}
-+	spin_unlock_bh(&listener->listener.waiters_lock);
-+	*socket = s_estab;
-+	if (*ret_path)
-+		kref_put(&(*ret_path)->path.kref, drbd_destroy_path);
-+	*ret_path = path;
-+	err = 0;
-+	goto out;
-+
-+retry_locked:
-+	spin_unlock_bh(&listener->listener.waiters_lock);
-+	dtt_socket_free(&s_estab);
-+	goto retry;
-+
-+out:
-+	kref_put(&drbd_listener->kref, drbd_listener_destroy);
-+	return err;
-+}
-+
-+static int dtt_receive_first_packet(struct drbd_tcp_transport *tcp_transport, struct socket *socket)
-+{
-+	struct drbd_transport *transport = &tcp_transport->transport;
-+	struct p_header80 *h = tcp_transport->rbuf[DATA_STREAM].base;
-+	const unsigned int header_size = sizeof(*h);
-+	struct drbd_net_conf *nc;
-+	int err;
-+
-+	rcu_read_lock();
-+	nc = rcu_dereference(transport->net_conf);
-+	if (!nc) {
-+		rcu_read_unlock();
-+		return -EIO;
-+	}
-+	socket->sk->sk_rcvtimeo = nc->ping_timeo * 4 * HZ / 10;
-+	rcu_read_unlock();
-+
-+	err = dtt_recv_short(socket, h, header_size, 0);
-+	if (err != header_size) {
-+		if (err >= 0)
-+			err = -EIO;
-+		return err;
-+	}
-+	if (h->magic != cpu_to_be32(DRBD_MAGIC)) {
-+		tr_err(transport, "Wrong magic value 0x%08x in receive_first_packet\n",
-+			 be32_to_cpu(h->magic));
-+		return -EINVAL;
-+	}
-+	return be16_to_cpu(h->command);
-+}
-+
-+
-+static int dtt_control_tcp_input(read_descriptor_t *rd_desc, struct sk_buff *skb,
-+				 unsigned int offset, size_t len)
-+{
-+	struct drbd_transport *transport = rd_desc->arg.data;
-+	unsigned int avail, consumed = 0;
-+	struct skb_seq_state seq;
-+
-+	skb_prepare_seq_read(skb, offset, offset + len, &seq);
-+	do {
-+		struct drbd_const_buffer buffer;
-+
-+		/*
-+		 * skb_seq_read() returns the length of the block assigned to buffer. This might
-+		 * be more than is actually ready, so we ensure we only mark as available what
-+		 * is ready.
-+		 */
-+		avail = skb_seq_read(consumed, &buffer.buffer, &seq);
-+		if (!avail)
-+			break;
-+		buffer.avail = min_t(unsigned int, avail, len - consumed);
-+		consumed += buffer.avail;
-+		drbd_control_data_ready(transport, &buffer);
-+	} while (consumed < len);
-+	skb_abort_seq_read(&seq);
-+
-+	return consumed;
-+}
-+
-+static void dtt_control_data_ready_work(struct work_struct *item)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(item, struct drbd_tcp_transport, control_data_ready_work);
-+	struct socket *csocket = tcp_transport->stream[CONTROL_STREAM];
-+	struct drbd_const_buffer drbd_buffer;
-+	int n;
-+
-+	while (true) {
-+		n = dtt_recv_short(csocket, tcp_transport->rbuf[CONTROL_STREAM].base, PAGE_SIZE,
-+				   MSG_DONTWAIT | MSG_NOSIGNAL);
-+		if (n == 0) {
-+			/* Orderly shutdown: the peer closed the meta socket, and
-+			 * the close surfaced here as EOF rather than (or before) a
-+			 * state-change callback. Do not silently drop it -- treat
-+			 * it as a peer-initiated disconnect, mirroring
-+			 * dtt_control_state_change(). Otherwise the connection
-+			 * lingers until the ping timeout, or forever on a transport
-+			 * that reports a close only through the receive path.
-+			 */
-+			drbd_control_event(&tcp_transport->transport, CLOSED_BY_PEER);
-+			break;
-+		}
-+		if (n < 0)
-+			break;	/* -EAGAIN: nothing more available right now */
-+
-+		drbd_buffer.buffer = tcp_transport->rbuf[CONTROL_STREAM].base;
-+		drbd_buffer.avail = n;
-+		drbd_control_data_ready(&tcp_transport->transport, &drbd_buffer);
-+	}
-+}
-+
-+static void dtt_control_data_ready(struct sock *sock)
-+{
-+	struct drbd_transport *transport = sock->sk_user_data;
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+
-+	read_descriptor_t rd_desc = {
-+		.count = 1,
-+		.arg = { .data = transport },
-+	};
-+
-+	if (!test_bit(DTT_DATA_READY_ARMED, &tcp_transport->flags)
-+	    && tcp_transport->original_control_sk_data_ready)
-+		return tcp_transport->original_control_sk_data_ready(sock);
-+
-+	/* We have two different paths depending on if TLS is enabled or not.
-+	 * If TLS is enabled, we can't use read_sock, firstly because it's not implemented for the
-+	 * TLS protocol on most kernels, secondly the implementation that does exist is not safe
-+	 * to call from SOFTIRQ context. Instead, we schedule a work and increment the counter of
-+	 * "pending" ready events.
-+	 *
-+	 * In normal TCP mode, we can simply use tcp_read_sock, as that is safe to call from SOFTIRQ
-+	 * contexts.
++	/* v is in kB/sec. We don't expect TiByte/sec yet.
++	 * v can be negative: while the resync loses ground to incoming
++	 * application writes the out-of-sync count grows, so the rate at
++	 * which it shrinks is negative. Show that honestly.
 +	 */
-+	mod_timer(&tcp_transport->control_timer, jiffies + sock->sk_rcvtimeo);
-+	if (tcp_transport->control_data_ready_work.func) {
-+		queue_work(dtt_csocket_recv, &tcp_transport->control_data_ready_work);
++	if (v < 0) {
++		seq_putc(seq, '-');
++		v = -v;
++	}
++	if (unlikely(v >= 1000000)) {
++		/* cool: > GiByte/s */
++		seq_printf(seq, "%ld,", v / 1000000);
++		v %= 1000000;
++		seq_printf(seq, "%03ld,%03ld", v/1000, v % 1000);
++	} else if (likely(v >= 1000))
++		seq_printf(seq, "%ld,%03ld", v/1000, v % 1000);
++	else
++		seq_printf(seq, "%ld", v);
++}
++
++/* like bit_to_kb(), but accepts a signed bit count so we can express a
++ * negative kB/sec rate when the out-of-sync set is growing.
++ */
++static long signed_bit_to_kb(long bits, unsigned int bm_block_shift)
++{
++	if (bits < 0)
++		return -(long)bit_to_kb(-bits, bm_block_shift);
++	return bit_to_kb(bits, bm_block_shift);
++}
++
++void drbd_get_syncer_progress_84(struct drbd_peer_device *pd,
++		enum drbd_repl_state repl_state, unsigned long *rs_total,
++		unsigned long *bits_left, unsigned int *per_mil_done)
++{
++	/* this is to break it at compile time when we change that, in case we
++	 * want to support more than (1<<32) bits on a 32bit arch.
++	 */
++	typecheck(unsigned long, pd->rs_total);
++	*rs_total = pd->rs_total;
++
++	/* note: both rs_total and rs_left are in bits, i.e. in
++	 * units of BM_BLOCK_SIZE.
++	 * for the percentage, we don't care.
++	 */
++
++	if (repl_state == L_VERIFY_S || repl_state == L_VERIFY_T)
++		*bits_left = atomic64_read(&pd->ov_left);
++	else
++		*bits_left = drbd_bm_total_weight(pd) - pd->rs_failed;
++	/* >> 10 to prevent overflow,
++	 * +1 to prevent division by zero
++	 */
++	if (*bits_left > *rs_total) {
++		/* D'oh. Maybe a logic bug somewhere.  More likely just a race
++		 * between state change and reset of rs_total.
++		 */
++		*bits_left = *rs_total;
++		*per_mil_done = *rs_total ? 0 : 1000;
 +	} else {
-+		spin_lock_bh(&tcp_transport->control_recv_lock);
-+		tcp_read_sock(sock, &rd_desc, dtt_control_tcp_input);
-+		spin_unlock_bh(&tcp_transport->control_recv_lock);
-+	}
-+}
-+
-+static void dtt_control_state_change(struct sock *sock)
-+{
-+	struct drbd_transport *transport = sock->sk_user_data;
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+
-+	switch (sock->sk_state) {
-+	case TCP_FIN_WAIT1:
-+	case TCP_CLOSE_WAIT:
-+	case TCP_CLOSE:
-+	case TCP_LAST_ACK:
-+	case TCP_CLOSING:
-+		drbd_control_event(transport, CLOSED_BY_PEER);
-+		break;
-+	default:
-+		tr_warn(transport, "unhandled state %d\n", sock->sk_state);
-+	}
-+
-+	tcp_transport->original_control_sk_state_change(sock);
-+}
-+
-+static void dtt_incoming_connection(struct sock *sock)
-+{
-+	struct dtt_listener *listener = sock->sk_user_data;
-+	struct drbd_path *drbd_path;
-+	void (*state_change)(struct sock *sock);
-+
-+	state_change = listener->original_sk_state_change;
-+	state_change(sock);
-+
-+	spin_lock(&listener->listener.waiters_lock);
-+	listener->listener.pending_accepts++;
-+	list_for_each_entry(drbd_path, &listener->listener.waiters, listener_link) {
-+		struct drbd_tcp_transport *tcp_transport =
-+			container_of(drbd_path->transport,
-+				     struct drbd_tcp_transport, transport);
-+		wake_up(&tcp_transport->wait);
-+	}
-+	spin_unlock(&listener->listener.waiters_lock);
-+}
-+
-+static void dtt_control_timer_fn(struct timer_list *t)
-+{
-+	struct drbd_tcp_transport *tcp_transport = timer_container_of(tcp_transport, t,
-+			control_timer);
-+	struct drbd_transport *transport = &tcp_transport->transport;
-+
-+	drbd_control_event(transport, TIMEOUT);
-+}
-+
-+static void dtt_destroy_listener(struct drbd_listener *generic_listener)
-+{
-+	struct dtt_listener *listener =
-+		container_of(generic_listener, struct dtt_listener, listener);
-+
-+	if (!listener->s_listen)
-+		return;
-+	unregister_state_change(listener->s_listen->sk, listener);
-+	sock_release(listener->s_listen);
-+}
-+
-+static int dtt_init_listener(struct drbd_transport *transport,
-+			     const struct sockaddr *addr,
-+			     struct net *net,
-+			     struct drbd_listener *drbd_listener)
-+{
-+	int err, sndbuf_size, rcvbuf_size, addr_len;
-+	struct sockaddr_storage my_addr;
-+	struct dtt_listener *listener = container_of(drbd_listener, struct dtt_listener, listener);
-+	struct socket *s_listen;
-+	struct drbd_net_conf *nc;
-+	const char *what = "";
-+
-+	rcu_read_lock();
-+	nc = rcu_dereference(transport->net_conf);
-+	if (!nc) {
-+		rcu_read_unlock();
-+		return -EINVAL;
-+	}
-+	sndbuf_size = nc->sndbuf_size;
-+	rcvbuf_size = nc->rcvbuf_size;
-+	rcu_read_unlock();
-+
-+	my_addr = *(struct sockaddr_storage *)addr;
-+
-+	err = sock_create_kern(net, my_addr.ss_family, SOCK_STREAM, IPPROTO_TCP, &s_listen);
-+	if (err < 0) {
-+		s_listen = NULL;
-+		what = "sock_create_kern";
-+		goto out;
-+	}
-+
-+	s_listen->sk->sk_reuse = SK_CAN_REUSE; /* SO_REUSEADDR */
-+	dtt_setbufsize(s_listen, sndbuf_size, rcvbuf_size);
-+
-+	addr_len = addr->sa_family == AF_INET6 ? sizeof(struct sockaddr_in6)
-+		: sizeof(struct sockaddr_in);
-+
-+	err = s_listen->ops->bind(s_listen, (struct sockaddr_unsized *)&my_addr, addr_len);
-+	if (err < 0) {
-+		what = "bind before listen";
-+		goto out;
-+	}
-+
-+	listener->s_listen = s_listen;
-+	write_lock_bh(&s_listen->sk->sk_callback_lock);
-+	listener->original_sk_state_change = s_listen->sk->sk_state_change;
-+	s_listen->sk->sk_state_change = dtt_incoming_connection;
-+	s_listen->sk->sk_user_data = listener;
-+	write_unlock_bh(&s_listen->sk->sk_callback_lock);
-+
-+	err = s_listen->ops->listen(s_listen, DRBD_PEERS_MAX * 2);
-+	if (err < 0) {
-+		what = "listen";
-+		goto out;
-+	}
-+
-+	listener->listener.listen_addr = my_addr;
-+
-+	return 0;
-+out:
-+	if (s_listen)
-+		sock_release(s_listen);
-+
-+	if (err < 0 &&
-+	    err != -EAGAIN && err != -EINTR && err != -ERESTARTSYS && err != -EADDRINUSE &&
-+	    err != -EADDRNOTAVAIL)
-+		tr_err(transport, "%s failed, err = %d\n", what, err);
-+
-+	return err;
-+}
-+
-+static void dtt_cleanup_accepted_sockets(struct dtt_path *path)
-+{
-+	while (!list_empty(&path->sockets)) {
-+		struct dtt_socket_container *socket_c =
-+			list_first_entry(&path->sockets, struct dtt_socket_container, list);
-+
-+		list_del(&socket_c->list);
-+		dtt_socket_free(&socket_c->socket);
-+		kfree(socket_c);
-+	}
-+}
-+
-+static void dtt_finish_connect(struct drbd_transport *transport)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	struct dtt_path *path;
-+
-+	clear_bit(DTT_CONNECTING, &tcp_transport->flags);
-+
-+	list_for_each_entry(path, &transport->paths, path.list) {
-+		drbd_put_listener(&path->path);
-+		dtt_cleanup_accepted_sockets(path);
-+	}
-+}
-+
-+static struct dtt_path *dtt_next_path(struct dtt_path *path, struct drbd_transport *transport)
-+{
-+	struct drbd_path *drbd_path;
-+
-+	drbd_path = __drbd_next_path_ref(path ? &path->path : NULL, transport);
-+
-+	/* Loop when we reach the end. */
-+	if (!drbd_path)
-+		drbd_path = __drbd_next_path_ref(NULL, transport);
-+
-+	return drbd_path ? container_of(drbd_path, struct dtt_path, path) : NULL;
-+}
-+
-+static int dtt_prepare_connect(struct drbd_transport *transport)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	struct dtt_path *path;
-+	struct drbd_path *drbd_path;
-+
-+	list_for_each_entry(path, &transport->paths, path.list)
-+		dtt_cleanup_accepted_sockets(path);
-+
-+	set_bit(DTT_CONNECTING, &tcp_transport->flags);
-+
-+	list_for_each_entry(drbd_path, &transport->paths, list) {
-+		if (!drbd_path->listener) {
-+			int err = drbd_get_listener(drbd_path);
-+
-+			if (err)
-+				return err;
-+		}
-+	}
-+
-+	return 0;
-+}
-+
-+static int dtt_connect(struct drbd_transport *transport)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	struct dtt_path *connect_to_path, *first_path = NULL;
-+	struct socket *dsocket, *csocket;
-+	struct drbd_net_conf *nc;
-+	bool tls, dsocket_is_server = false, csocket_is_server = false;
-+	char peername[64];
-+	key_serial_t tls_keyring, tls_privkey, tls_certificate;
-+	int timeout, err;
-+	bool ok;
-+	struct tls_handshake_wait csocket_tls_wait = { .status = 0 };
-+	struct tls_handshake_wait dsocket_tls_wait = { .status = 0 };
-+
-+	dsocket = NULL;
-+	csocket = NULL;
-+
-+	connect_to_path = dtt_next_path(NULL, transport);
-+	if (!connect_to_path) {
-+		err = -EDESTADDRREQ;
-+		goto out;
-+	}
-+
-+	do {
-+		struct socket *s = NULL;
-+
-+		err = dtt_try_connect(connect_to_path, &s);
-+		if (err < 0 && err != -EAGAIN)
-+			goto out_release_sockets;
-+
-+		if (s) {
-+			bool use_for_data;
-+
-+			if (first_path) {
-+				if (first_path != connect_to_path) {
-+					tr_info(transport, "initial paths crossed A - fail over\n");
-+					dtt_socket_free(&dsocket);
-+					dtt_socket_free(&csocket);
-+				}
-+
-+				kref_put(&first_path->path.kref, drbd_destroy_path);
-+				first_path = NULL;
-+			}
-+
-+			kref_get(&connect_to_path->path.kref);
-+			first_path = connect_to_path;
-+
-+			if (!dsocket && !csocket) {
-+				use_for_data = dtt_path_cmp_addr(first_path);
-+			} else if (!dsocket) {
-+				use_for_data = true;
-+			} else {
-+				if (csocket) {
-+					tr_err(transport, "Logic error in conn_connect()\n");
-+					goto out_eagain;
-+				}
-+				use_for_data = false;
-+			}
-+
-+			if (!use_for_data)
-+				clear_bit(RESOLVE_CONFLICTS, &transport->flags);
-+
-+			err = dtt_send_first_packet(tcp_transport,
-+						    s,
-+						    use_for_data ? P_INITIAL_DATA : P_INITIAL_META);
-+
-+			if (err < 0) {
-+				tr_warn(transport, "Error sending initial packet: %d\n", err);
-+				dtt_socket_free(&s);
-+			} else if (use_for_data) {
-+				dsocket = s;
-+				dsocket_is_server = false;
-+			} else {
-+				csocket = s;
-+				csocket_is_server = false;
-+			}
-+		} else if (!first_path) {
-+			connect_to_path = dtt_next_path(connect_to_path, transport);
-+
-+			/*
-+			 * The final path should not be removed while
-+			 * connecting, but handle the case for robustness.
-+			 */
-+			err = -EDESTADDRREQ;
-+			if (!connect_to_path)
-+				goto out_release_sockets;
-+		}
-+
-+		if (dtt_connection_established(transport, &dsocket, &csocket, &first_path))
-+			break;
-+
-+retry:
-+		s = NULL;
-+		err = dtt_wait_for_connect(transport, &s, &connect_to_path);
-+		if (err < 0 && err != -EAGAIN)
-+			goto out_release_sockets;
-+
-+		if (s) {
-+			int fp = dtt_receive_first_packet(tcp_transport, s);
-+
-+			if (first_path) {
-+				if (first_path != connect_to_path) {
-+					tr_info(transport, "initial paths crossed P - fail over\n");
-+					dtt_socket_free(&dsocket);
-+					dtt_socket_free(&csocket);
-+				}
-+
-+				kref_put(&first_path->path.kref, drbd_destroy_path);
-+				first_path = NULL;
-+			}
-+
-+			kref_get(&connect_to_path->path.kref);
-+			first_path = connect_to_path;
-+
-+			dtt_socket_ok_or_free(&dsocket);
-+			dtt_socket_ok_or_free(&csocket);
-+			switch (fp) {
-+			case P_INITIAL_DATA:
-+				if (dsocket) {
-+					tr_warn(transport, "initial packet S crossed\n");
-+					dtt_socket_free(&dsocket);
-+					dsocket = s;
-+					dsocket_is_server = true;
-+					goto randomize;
-+				}
-+				dsocket = s;
-+				dsocket_is_server = true;
-+				break;
-+			case P_INITIAL_META:
-+				set_bit(RESOLVE_CONFLICTS, &transport->flags);
-+				if (csocket) {
-+					tr_warn(transport, "initial packet M crossed\n");
-+					dtt_socket_free(&csocket);
-+					csocket = s;
-+					csocket_is_server = true;
-+					goto randomize;
-+				}
-+				csocket = s;
-+				csocket_is_server = true;
-+				break;
-+			default:
-+				tr_warn(transport, "Error receiving initial packet: %d\n", fp);
-+				dtt_socket_free(&s);
-+randomize:
-+				if (get_random_u32_below(2))
-+					goto retry;
-+			}
-+		}
-+
-+		if (drbd_should_abort_listening(transport))
-+			goto out_eagain;
-+
-+		ok = dtt_connection_established(transport, &dsocket, &csocket, &first_path);
-+	} while (!ok);
-+
-+	rcu_read_lock();
-+	nc = rcu_dereference(transport->net_conf);
-+	timeout = nc->timeout * HZ / 10;
-+	tls = nc->tls;
-+	memcpy(peername, nc->name, 64);
-+	tls_keyring = nc->tls_keyring;
-+	tls_privkey = nc->tls_privkey;
-+	tls_certificate = nc->tls_certificate;
-+	rcu_read_unlock();
-+
-+	write_lock_bh(&csocket->sk->sk_callback_lock);
-+	clear_bit(DTT_DATA_READY_ARMED, &tcp_transport->flags);
-+	tcp_transport->original_control_sk_data_ready = csocket->sk->sk_data_ready;
-+	csocket->sk->sk_user_data = transport;
-+	csocket->sk->sk_data_ready = dtt_control_data_ready;
-+	write_unlock_bh(&csocket->sk->sk_callback_lock);
-+
-+	if (tls) {
-+		csocket_tls_wait.done = COMPLETION_INITIALIZER_ONSTACK(csocket_tls_wait.done);
-+		dsocket_tls_wait.done = COMPLETION_INITIALIZER_ONSTACK(dsocket_tls_wait.done);
-+
-+		err = tls_init_hello(
-+			csocket, peername, tls_keyring, tls_privkey, tls_certificate,
-+			csocket_is_server ? tls_server_hello_x509 : tls_client_hello_x509,
-+			&csocket_tls_wait);
-+		if (err < 0) {
-+			tr_warn(transport, "Error from control socket tls handshake: %d\n", err);
-+			err = dtt_socket_err_to_eagain(err);
-+			goto out_release_sockets;
-+		}
-+
-+		err = tls_init_hello(
-+			dsocket, peername, tls_keyring, tls_privkey, tls_certificate,
-+			dsocket_is_server ? tls_server_hello_x509 : tls_client_hello_x509,
-+			&dsocket_tls_wait);
-+		if (err < 0) {
-+			tr_warn(transport, "Error from data socket tls handshake: %d\n", err);
-+			err = dtt_socket_err_to_eagain(err);
-+			goto out_release_sockets;
-+		}
-+
-+		err = tls_wait_hello(&csocket_tls_wait, &dsocket_tls_wait, timeout);
-+		if (err < 0) {
-+			tr_warn(transport, "Error from tls handshake: %d\n", err);
-+			err = dtt_socket_err_to_eagain(err);
-+			goto out_release_sockets;
-+		}
-+
-+		INIT_WORK(&tcp_transport->control_data_ready_work, dtt_control_data_ready_work);
-+	}
-+
-+	TR_ASSERT(transport, first_path == connect_to_path);
-+	set_bit(TR_ESTABLISHED, &connect_to_path->path.flags);
-+	drbd_path_event(transport, &connect_to_path->path);
-+
-+	dsocket->sk->sk_reuse = SK_CAN_REUSE; /* SO_REUSEADDR */
-+	csocket->sk->sk_reuse = SK_CAN_REUSE; /* SO_REUSEADDR */
-+
-+	/* We are a block device, we are in the write-out path,
-+	 * we may need memory to facilitate memory reclaim
-+	 */
-+	dsocket->sk->sk_allocation = GFP_ATOMIC;
-+	csocket->sk->sk_allocation = GFP_ATOMIC;
-+
-+	dsocket->sk->sk_use_task_frag = false;
-+	csocket->sk->sk_use_task_frag = false;
-+
-+	sk_set_memalloc(dsocket->sk);
-+	sk_set_memalloc(csocket->sk);
-+
-+	dsocket->sk->sk_priority = TC_PRIO_INTERACTIVE_BULK;
-+	csocket->sk->sk_priority = TC_PRIO_INTERACTIVE;
-+
-+	/* NOT YET ...
-+	 * sock.socket->sk->sk_sndtimeo = transport->net_conf->timeout*HZ/10;
-+	 * sock.socket->sk->sk_rcvtimeo = MAX_SCHEDULE_TIMEOUT;
-+	 * first set it to the P_CONNECTION_FEATURES timeout,
-+	 * which we set to 4x the configured ping_timeout. */
-+
-+	/* we don't want delays.
-+	 * we use tcp_sock_set_cork where appropriate, though */
-+	tcp_sock_set_nodelay(dsocket->sk);
-+	tcp_sock_set_nodelay(csocket->sk);
-+
-+	tcp_transport->stream[DATA_STREAM] = dsocket;
-+	tcp_transport->stream[CONTROL_STREAM] = csocket;
-+
-+	dsocket->sk->sk_sndtimeo = timeout;
-+	csocket->sk->sk_sndtimeo = timeout;
-+
-+	sock_set_keepalive(dsocket->sk);
-+
-+	if (drbd_keepidle)
-+		tcp_sock_set_keepidle(dsocket->sk, drbd_keepidle);
-+	if (drbd_keepcnt)
-+		tcp_sock_set_keepcnt(dsocket->sk, drbd_keepcnt);
-+	if (drbd_keepintvl)
-+		tcp_sock_set_keepintvl(dsocket->sk, drbd_keepintvl);
-+
-+	write_lock_bh(&csocket->sk->sk_callback_lock);
-+	tcp_transport->original_control_sk_state_change = csocket->sk->sk_state_change;
-+	csocket->sk->sk_state_change = dtt_control_state_change;
-+	set_bit(DTT_DATA_READY_ARMED, &tcp_transport->flags);
-+	write_unlock_bh(&csocket->sk->sk_callback_lock);
-+
-+	err = 0;
-+	goto out;
-+
-+out_eagain:
-+	err = -EAGAIN;
-+
-+out_release_sockets:
-+	dtt_socket_free(&dsocket);
-+	dtt_socket_free(&csocket);
-+
-+out:
-+	if (first_path)
-+		kref_put(&first_path->path.kref, drbd_destroy_path);
-+	if (connect_to_path)
-+		kref_put(&connect_to_path->path.kref, drbd_destroy_path);
-+
-+	return err;
-+}
-+
-+static int dtt_net_conf_change(struct drbd_transport *transport,
-+			       struct drbd_net_conf *new_net_conf)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	struct drbd_net_conf *old_net_conf;
-+	struct socket *data_socket = tcp_transport->stream[DATA_STREAM];
-+	struct socket *control_socket = tcp_transport->stream[CONTROL_STREAM];
-+
-+	rcu_read_lock();
-+	old_net_conf = rcu_dereference(transport->net_conf);
-+	rcu_read_unlock();
-+
-+	if (old_net_conf && old_net_conf->tls != new_net_conf->tls &&
-+	    (data_socket || control_socket)) {
-+		tr_warn(transport, "cannot switch tls (%s -> %s) while connected\n",
-+			old_net_conf->tls ? "yes" : "no", new_net_conf->tls ? "yes" : "no");
-+		return -EINVAL;
-+	}
-+
-+	if (data_socket) {
-+		dtt_setbufsize(data_socket, new_net_conf->sndbuf_size, new_net_conf->rcvbuf_size);
-+	}
-+
-+	if (control_socket) {
-+		dtt_setbufsize(control_socket, new_net_conf->sndbuf_size, new_net_conf->rcvbuf_size);
-+	}
-+
-+	return 0;
-+}
-+
-+static void dtt_set_rcvtimeo(struct drbd_transport *transport, enum drbd_stream stream, long timeout)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	struct socket *socket = tcp_transport->stream[stream];
-+
-+	if (!socket)
-+		return;
-+
-+	socket->sk->sk_rcvtimeo = timeout;
-+
-+	if (stream == CONTROL_STREAM)
-+		mod_timer(&tcp_transport->control_timer, jiffies + timeout);
-+
-+}
-+
-+static long dtt_get_rcvtimeo(struct drbd_transport *transport, enum drbd_stream stream)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	struct socket *socket = tcp_transport->stream[stream];
-+
-+	if (!socket)
-+		return -ENOTCONN;
-+
-+	return socket->sk->sk_rcvtimeo;
-+}
-+
-+static bool dtt_stream_ok(struct drbd_transport *transport, enum drbd_stream stream)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	struct socket *socket = tcp_transport->stream[stream];
-+
-+	return socket && socket->sk;
-+}
-+
-+static void dtt_update_congested(struct drbd_tcp_transport *tcp_transport)
-+{
-+	struct socket *socket = tcp_transport->stream[DATA_STREAM];
-+	struct sock *sock;
-+
-+	if (!socket)
-+		return;
-+
-+	sock = socket->sk;
-+	if (sock->sk_wmem_queued > sock->sk_sndbuf * 4 / 5)
-+		set_bit(NET_CONGESTED, &tcp_transport->transport.flags);
-+}
-+
-+static int dtt_send_page(struct drbd_transport *transport, enum drbd_stream stream,
-+			 struct page *page, int offset, size_t size, unsigned msg_flags)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	struct socket *socket = tcp_transport->stream[stream];
-+	struct drbd_net_conf *nc;
-+	struct msghdr msg;
-+	struct bio_vec bvec;
-+	int len = size;
-+	int err = -EIO;
-+	bool tls;
-+
-+	if (!socket)
-+		return -ENOTCONN;
-+
-+	rcu_read_lock();
-+	nc = rcu_dereference(transport->net_conf);
-+	tls = nc && nc->tls;
-+	rcu_read_unlock();
-+
-+	/* With kTLS the payload is encrypted into freshly allocated TLS records,
-+	 * so there is no zero-copy to preserve. Doing so would cause page ref bugs.
-+	 */
-+	if (tls)
-+		msg_flags &= ~MSG_SPLICE_PAGES;
-+
-+	msg = (struct msghdr) { .msg_flags = msg_flags | MSG_NOSIGNAL };
-+
-+	dtt_update_congested(tcp_transport);
-+	do {
-+		int sent;
-+
-+		if (tls) {
-+			/* Map and send at most one page at a time. */
-+			struct page *p = page + (offset >> PAGE_SHIFT);
-+			unsigned int poff = offset & ~PAGE_MASK;
-+			unsigned int chunk = min_t(int, len, PAGE_SIZE - poff);
-+			void *addr = kmap_local_page(p);
-+			struct kvec iov = { .iov_base = addr + poff, .iov_len = chunk };
-+
-+			iov_iter_kvec(&msg.msg_iter, ITER_SOURCE, &iov, 1, chunk);
-+			sent = sock_sendmsg(socket, &msg);
-+			kunmap_local(addr);
-+		} else {
-+			bvec_set_page(&bvec, page, len, offset);
-+			iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, len);
-+
-+			sent = sock_sendmsg(socket, &msg);
-+		}
-+		if (sent <= 0) {
-+			if (sent == -EAGAIN) {
-+				if (drbd_stream_send_timed_out(transport, stream))
-+					break;
-+				continue;
-+			}
-+			tr_warn(transport, "%s: size=%d len=%d sent=%d\n",
-+			     __func__, (int)size, len, sent);
-+			if (sent < 0)
-+				err = sent;
-+			break;
-+		}
-+		len    -= sent;
-+		offset += sent;
-+		/* NOTE: it may take up to twice the socket timeout to have it
-+		 * return -EAGAIN, the first timeout will likely happen with a
-+		 * partial send, masking the timeout.  Maybe we want to export
-+		 * drbd_stream_should_continue_after_partial_send(transport, stream)
-+		 * and add that to the while() condition below.
++		/* Make sure the division happens in long context.
++		 * We allow up to one petabyte storage right now,
++		 * at a granularity of 4k per bit that is 2**38 bits.
++		 * After shift right and multiplication by 1000,
++		 * this should still fit easily into a 32bit long,
++		 * so we don't need a 64bit division on 32bit arch.
++		 * Note: currently we don't support such large bitmaps on 32bit
++		 * arch anyways, but no harm done to be prepared for it here.
 +		 */
-+	} while (len > 0 /* THINK && peer_device->repl_state[NOW] >= L_ESTABLISHED */);
-+	clear_bit(NET_CONGESTED, &tcp_transport->transport.flags);
-+
-+	if (len == 0)
-+		err = 0;
-+
-+	return err;
++		unsigned int shift = *rs_total > UINT_MAX ? 16 : 10;
++		unsigned long left = *bits_left >> shift;
++		unsigned long total = 1UL + (*rs_total >> shift);
++		unsigned long tmp = 1000UL - left * 1000UL/total;
++		*per_mil_done = tmp;
++	}
 +}
 +
-+static int dtt_send_bio(struct drbd_transport *transport, struct bio *bio, unsigned int msg_flags)
++static void drbd_syncer_progress(struct drbd_peer_device *pd, struct seq_file *seq,
++		enum drbd_repl_state repl_state)
 +{
-+	struct bio_vec bvec;
-+	struct bvec_iter iter;
++	unsigned long dt, rt, rs_total, rs_left;
++	long db, dbdt;
++	unsigned int res;
++	int i, x, y;
++	int stalled = 0;
++	unsigned int bm_block_shift = pd->device->last_bm_block_shift;
 +
-+	bio_for_each_segment(bvec, bio, iter) {
-+		int err;
++	drbd_get_syncer_progress_84(pd, repl_state, &rs_total, &rs_left, &res);
 +
-+		err = dtt_send_page(transport, DATA_STREAM, bvec.bv_page,
-+				      bvec.bv_offset, bvec.bv_len,
-+				      msg_flags | (bio_iter_last(bvec, iter) ? 0 : MSG_MORE));
-+		if (err)
-+			return err;
++	x = res/50;
++	y = 20-x;
++	seq_puts(seq, "\t[");
++	for (i = 1; i < x; i++)
++		seq_putc(seq, '=');
++	seq_putc(seq, '>');
++	for (i = 0; i < y; i++)
++		seq_putc(seq, '.');
++	seq_puts(seq, "] ");
++
++	if (repl_state == L_VERIFY_S || repl_state == L_VERIFY_T)
++		seq_puts(seq, "verified:");
++	else
++		seq_puts(seq, "sync'ed:");
++	seq_printf(seq, "%3u.%u%% ", res / 10, res % 10);
++
++	/* if more than a few GB, display in MB */
++	if (rs_total > (4UL << (30 - bm_block_shift)))
++		seq_printf(seq, "(%llu/%llu)M",
++			    bit_to_kb(rs_left >> 10, bm_block_shift),
++			    bit_to_kb(rs_total >> 10, bm_block_shift));
++	else
++		seq_printf(seq, "(%llu/%llu)K",
++			    bit_to_kb(rs_left, bm_block_shift),
++			    bit_to_kb(rs_total, bm_block_shift));
++
++	seq_puts(seq, "\n\t");
++
++	/* see drivers/md/md.c
++	 * We do not want to overflow, so the order of operands and
++	 * the * 100 / 100 trick are important. We do a +1 to be
++	 * safe against division by zero. We only estimate anyway.
++	 *
++	 * dt: time from mark until now
++	 * db: blocks written from mark until now
++	 * rt: remaining time
++	 */
++	/* Rolling marks. last_mark+1 may just now be modified.  last_mark+2 is
++	 * at least (DRBD_SYNC_MARKS-2)*DRBD_SYNC_MARK_STEP old, and has at
++	 * least DRBD_SYNC_MARK_STEP time before it will be modified.
++	 */
++	/* ------------------------ ~18s average ------------------------ */
++	i = (pd->rs_last_mark + 2) % DRBD_SYNC_MARKS;
++	dt = (jiffies - pd->rs_mark_time[i]) / HZ;
++	if (dt > 180)
++		stalled = 1;
++
++	if (!dt)
++		dt++;
++	db = (long)pd->rs_mark_left[i] - (long)rs_left;
++	if (db <= 0) {
++		/* out-of-sync is not shrinking: under this write load the
++		 * resync is not converging, so there is no finish time.
++		 */
++		seq_puts(seq, "finish: ∞");
++	} else {
++		rt = (dt * (rs_left / ((unsigned long)db/100+1)))/100; /* seconds */
++		seq_printf(seq, "finish: %lu:%02lu:%02lu",
++			rt / 3600, (rt % 3600) / 60, rt % 60);
 +	}
++
++	dbdt = signed_bit_to_kb(db / (long)dt, bm_block_shift);
++	seq_puts(seq, " speed: ");
++	seq_printf_with_thousands_grouping(seq, dbdt);
++	seq_puts(seq, " (");
++	/* ------------------------- ~3s average ------------------------ */
++	if (1) {
++		/* this is what drbd_rs_should_slow_down() uses */
++		i = (pd->rs_last_mark + DRBD_SYNC_MARKS-1) % DRBD_SYNC_MARKS;
++		dt = (jiffies - pd->rs_mark_time[i]) / HZ;
++		if (!dt)
++			dt++;
++		db = (long)pd->rs_mark_left[i] - (long)rs_left;
++		dbdt = signed_bit_to_kb(db / (long)dt, bm_block_shift);
++		seq_printf_with_thousands_grouping(seq, dbdt);
++		seq_puts(seq, " -- ");
++	}
++
++	/* --------------------- long term average ---------------------- */
++	/* mean speed since syncer started we do account for PausedSync periods */
++	dt = (jiffies - pd->rs_start - pd->rs_paused) / HZ;
++	if (dt == 0)
++		dt = 1;
++	db = (long)rs_total - (long)rs_left;
++	dbdt = signed_bit_to_kb(db / (long)dt, bm_block_shift);
++	seq_printf_with_thousands_grouping(seq, dbdt);
++	seq_putc(seq, ')');
++
++	if (repl_state == L_SYNC_TARGET ||
++	    repl_state == L_VERIFY_S) {
++		seq_puts(seq, " want: ");
++		seq_printf_with_thousands_grouping(seq, pd->c_sync_rate);
++	}
++	seq_printf(seq, " K/sec%s\n", stalled ? " (stalled)" : "");
++
++	{
++		/* 64 bit: we convert to sectors in the display below. */
++		unsigned long bm_bits = drbd_bm_bits(pd->device);
++		unsigned long bit_pos;
++		unsigned long long stop_sector = 0;
++
++		if (repl_state == L_VERIFY_S ||
++		    repl_state == L_VERIFY_T) {
++			bit_pos = bm_bits - (unsigned long)atomic64_read(&pd->ov_left);
++			if (verify_can_do_stop_sector(pd))
++				stop_sector = pd->ov_stop_sector;
++		} else
++			bit_pos = pd->resync_next_bit;
++		/* Total sectors may be slightly off for oddly sized devices. So what. */
++		seq_printf(seq,
++			"\t%3d%% sector pos: %llu/%llu",
++			(int)(bit_pos / (bm_bits/100+1)),
++			(unsigned long long)bit_pos * sect_per_bit(bm_block_shift),
++			(unsigned long long)bm_bits * sect_per_bit(bm_block_shift));
++		if (stop_sector != 0 && stop_sector != ULLONG_MAX)
++			seq_printf(seq, " stop sector: %llu", stop_sector);
++		seq_putc(seq, '\n');
++	}
++}
++
++static const char *drbd_conn_str_84(enum drbd_conn_state s)
++{
++	/* enums are unsigned... */
++	return (int)s > (int)L_BEHIND ? "TOO_LARGE" : drbd_conn_s_names[s];
++}
++
++/*
++ * Select an 8.4-mode device's peer device (there is at most one: an
++ * 8.4-mode resource has one connection, which creates a peer device for
++ * every device) and fetch the raw state: the peer device's if one exists,
++ * else the device's own.
++ *
++ * The result is DRBD 9's unpacked union drbd_state, with DRBD 9's own
++ * disk/pdsk numbering and quorum bit still in place; drbd_pack_state_84()
++ * applies the v1 wire remap on top, seq_print_device_proc_drbd() feeds it
++ * to DRBD 9's own name lookups and must not.
++ *
++ * The caller holds rcu_read_lock() across this call and for as long as it
++ * keeps using *peer_device_r: the peer device is found without taking a
++ * reference.
++ *
++ * @peer_device_r: the selected peer device or NULL; may be NULL.
++ */
++static union drbd_state drbd_get_state_84(struct drbd_device *device,
++					  struct drbd_peer_device **peer_device_r)
++{
++	struct drbd_peer_device *peer_device;
++
++	peer_device = list_first_or_null_rcu(&device->peer_devices, struct drbd_peer_device,
++					     peer_devices);
++	if (peer_device_r)
++		*peer_device_r = peer_device;
++
++	return peer_device ? drbd_get_peer_device_state(peer_device, NOW)
++			    : drbd_get_device_state(device, NOW);
++}
++
++/*
++ * Pack a device's current state into an 8.4 wire state word (union
++ * drbd_state as u32).
++ *
++ * conn/repl numbering needs no translation: DRBD 9 split 8.4's enum
++ * drbd_conns into drbd_conn_state and drbd_repl_state but kept the numeric
++ * values. disk/pdsk do: DRBD 9 inserted D_DETACHING at index 2, so
++ * drbd_disk_state_84() shifts everything above it by one, the same remap
++ * send_state() uses for a pre-9.0 peer. s.quorum (bit 23) is _pad on 8.4
++ * and must read as 0.
++ *
++ * The result carries 8.4 numbering: do not feed it to drbd_disk_str() and
++ * friends.
++ */
++u32 drbd_pack_state_84(struct drbd_device *device)
++{
++	union drbd_state s;
++
++	rcu_read_lock();
++	s = drbd_get_state_84(device, NULL);
++	rcu_read_unlock();
++
++	s.disk = drbd_disk_state_84(s.disk);
++	s.pdsk = drbd_disk_state_84(s.pdsk);
++	s.quorum = 0;	/* bit 23 is _pad to 8.4 */
++
++	return s.i;
++}
++
++static int seq_print_device_proc_drbd(struct seq_file *m, struct drbd_device *device)
++{
++	unsigned int send_kb, recv_kb, pending_cnt, unacked_cnt, epochs;
++	struct drbd_connection *connection = NULL;
++	struct drbd_peer_device *peer_device;
++	union drbd_state state;
++	const char *sn;
++	bool have_ldev;
++	char wp;
++
++	/*
++	 * Unpacked on purpose: state.disk/state.pdsk go to DRBD 9's own
++	 * drbd_disk_str() below. The caller holds rcu_read_lock().
++	 */
++	state = drbd_get_state_84(device, &peer_device);
++
++	if (peer_device) {
++		connection = peer_device->connection;
++		send_kb = peer_device->send_cnt/2;
++		recv_kb = peer_device->recv_cnt/2;
++		pending_cnt = atomic_read(&peer_device->ap_pending_cnt) +
++			atomic_read(&peer_device->rs_pending_cnt);
++		unacked_cnt = atomic_read(&peer_device->unacked_cnt);
++	} else {
++		connection = list_first_or_null_rcu(&device->resource->connections,
++						    struct drbd_connection, connections);
++		send_kb = 0;
++		recv_kb = 0;
++		pending_cnt = 0;
++		unacked_cnt = 0;
++	}
++	if (connection) {
++		struct drbd_net_conf *nc = rcu_dereference(connection->transport.net_conf);
++
++		wp = nc ? nc->wire_protocol - DRBD_PROT_A + 'A' : ' ';
++		epochs = connection->epochs;
++	} else {
++		wp = 'C';
++		epochs = 0;
++	}
++
++	sn = drbd_conn_str_84(state.conn);
++	have_ldev = get_ldev_if_state(device, D_FAILED);
++
++	if (state.conn == C_STANDALONE &&
++	    state.disk == D_DISKLESS &&
++	    state.role == R_SECONDARY) {
++		seq_printf(m, "%2d: cs:Unconfigured\n", device->minor);
++	} else {
++		seq_printf(m,
++			   "%2d: cs:%s ro:%s/%s ds:%s/%s %c %c%c%c%c%c%c\n"
++			   "    ns:%u nr:%u dw:%u dr:%u al:%u bm:%u "
++			   "lo:%d pe:%d ua:%d ap:%d ep:%d wo:%c",
++			   device->minor, sn,
++			   drbd_role_str(state.role),
++			   drbd_role_str(state.peer),
++			   drbd_disk_str(state.disk),
++			   drbd_disk_str(state.pdsk),
++			   wp,
++			   drbd_suspended(device) ? 's' : 'r',
++			   state.aftr_isp ? 'a' : '-',
++			   state.peer_isp ? 'p' : '-',
++			   state.user_isp ? 'u' : '-',
++			   '-' /* congestion reason... FIXME */,
++			   test_bit(AL_SUSPENDED, &device->flags) ? 's' : '-',
++			   send_kb,
++			   recv_kb,
++			   device->writ_cnt/2,
++			   device->read_cnt/2,
++			   device->al_writ_cnt,
++			   device->bm_writ_cnt,
++			   atomic_read(&device->local_cnt),
++			   pending_cnt,
++			   unacked_cnt,
++			   atomic_read(&device->ap_bio_cnt[WRITE]) +
++			   atomic_read(&device->ap_bio_cnt[READ]),
++			   epochs,
++			   write_ordering_chars[device->resource->write_ordering]
++			);
++		seq_printf(m, " oos:%llu\n", (peer_device && have_ldev) ?
++				device_bit_to_kb(device, drbd_bm_total_weight(peer_device)) : 0);
++	}
++	if (have_ldev) {
++		if (state.conn == L_SYNC_SOURCE ||
++		    state.conn == L_SYNC_TARGET ||
++		    state.conn == L_VERIFY_S ||
++		    state.conn == L_VERIFY_T)
++			drbd_syncer_progress(peer_device, m, state.conn);
++
++		put_ldev(device);
++	}
++	/* drbd_proc_details 1 or 2 missing */
++
 +	return 0;
 +}
+diff --git a/drivers/block/drbd/drbd_legacy_84.h b/drivers/block/drbd/drbd_legacy_84.h
+new file mode 100644
+index 000000000000..ed6cc3aedc8e
+--- /dev/null
++++ b/drivers/block/drbd/drbd_legacy_84.h
+@@ -0,0 +1,129 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/*
++ * Copyright (C) 2025, LINBIT HA-Solutions GmbH.
++ */
 +
-+static bool dtt_hint(struct drbd_transport *transport, enum drbd_stream stream,
-+		enum drbd_tr_hints hint)
++#ifndef __DRBD_LEGACY_84_H
++#define __DRBD_LEGACY_84_H
++
++#include "drbd_int.h"
++
++struct meta_data_on_disk_84;
++
++/*
++ *   drbd-8.4                      drbd-9 md.flags                   drbd-9 peer-md.flags
++ * MDF_CONSISTENT      1 << 0  MDF_CONSISTENT =        1 << 0,   MDF_PEER_CONNECTED =    1 << 0,
++ * MDF_PRIMARY_IND     1 << 1  MDF_PRIMARY_IND =       1 << 1,   MDF_PEER_OUTDATED =     1 << 1,
++ * MDF_CONNECTED_IND   1 << 2                                    MDF_PEER_FENCING =      1 << 2,
++ * MDF_FULL_SYNC       1 << 3                                    MDF_PEER_FULL_SYNC =    1 << 3,
++ * MDF_WAS_UP_TO_DATE  1 << 4  MDF_WAS_UP_TO_DATE =    1 << 4,   MDF_PEER_DEVICE_SEEN =  1 << 4,
++ * MDF_PEER_OUT_DATED  1 << 5                                    MDF_PEER_DIVERGENCE_BITMAP = 1 << 5
++ * MDF_CRASHED_PRIMARY 1 << 6  MDF_CRASHED_PRIMARY =   1 << 6,   MDF_PEER_BITMAP_AUTHORITATIVE
++ *                                                                                       = 1 << 6
++ * MDF_AL_CLEAN        1 << 7  MDF_AL_CLEAN =          1 << 7,
++ * MDF_AL_DISABLED     1 << 8  MDF_AL_DISABLED =       1 << 8,
++ *                             MDF_PRIMARY_LOST_QUORUM = 1 << 9,
++ *                             MDF_HAVE_QUORUM =       1 << 10,
++ *                                                                MDF_NODE_EXISTS =      1 << 16,
++ */
++
++#define MDF_84_MASK (MDF_CONSISTENT | MDF_PRIMARY_IND | MDF_WAS_UP_TO_DATE | \
++		     MDF_CRASHED_PRIMARY | MDF_AL_CLEAN | MDF_AL_DISABLED)
++#define MDF_84_PEER_MASK (MDF_PEER_FULL_SYNC)
++#define MDF_84_CONNECTED_IND (1<<2)
++#define MDF_84_PEER_OUTDATED (1<<5)
++
++/*
++ * Mask for the v1 DEVICE_STATISTICS dev_disk_flags and
++ * PEER_DEVICE_STATISTICS peer_dev_flags attributes. DRBD 9 keeps 8.4's
++ * bit positions for every bit 8.4 knows about, so masking off the newer
++ * bits is enough; nothing needs remapping.
++ */
++#define PEER_DEV_FLAGS_84_MASK (MDF_PEER_CONNECTED | MDF_PEER_OUTDATED | \
++				 MDF_PEER_FENCING | MDF_PEER_FULL_SYNC)
++
++#ifdef CONFIG_DRBD_COMPAT_84
++extern atomic_t nr_drbd8_devices;
++
++void drbd_md_decode_84(struct meta_data_on_disk_84 *on_disk, struct drbd_md *md);
++void drbd_md_encode_84(struct drbd_device *device, struct meta_data_on_disk_84 *buffer);
++int drbd_setup_node_ids_84(struct drbd_connection *connection, struct drbd_path *path,
++			   unsigned int peer_node_id);
++bool drbd_show_legacy_device(struct seq_file *seq, void *v);
++u32 drbd_pack_state_84(struct drbd_device *device);
++void drbd_get_syncer_progress_84(struct drbd_peer_device *pd,
++		enum drbd_repl_state repl_state, unsigned long *rs_total,
++		unsigned long *bits_left, unsigned int *per_mil_done);
++
++/*
++ * Remap a DRBD 9 enum drbd_disk_state value to 8.4's numbering for the v1
++ * wire: DRBD 9 inserted D_DETACHING at index 2, shifting every state above
++ * it by one. Same remap send_state() applies for a pre-9.0 peer. Every
++ * raw disk or pdsk value put on the v1 wire must go through this.
++ */
++static inline enum drbd_disk_state drbd_disk_state_84(enum drbd_disk_state state)
 +{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	bool rv = true;
-+	struct socket *socket = tcp_transport->stream[stream];
++	if (state > D_DETACHING)
++		state--;
++	return state;
++}
 +
-+	if (!socket)
-+		return false;
-+
-+	switch (hint) {
-+	case CORK:
-+		tcp_sock_set_cork(socket->sk, true);
-+		break;
-+	case UNCORK:
-+		tcp_sock_set_cork(socket->sk, false);
-+		break;
-+	case NODELAY:
-+		tcp_sock_set_nodelay(socket->sk);
-+		break;
-+	case NOSPACE:
-+		if (socket->sk->sk_socket)
-+			set_bit(SOCK_NOSPACE, &socket->sk->sk_socket->flags);
-+		break;
-+	case QUICKACK:
-+		tcp_sock_set_quickack(socket->sk, 2);
-+		break;
-+	default: /* not implemented, but should not trigger error handling */
-+		return true;
++/*
++ * Remap a DRBD 9 enum drbd_state_rv value to one 8.4 userland's own SS_*
++ * string table can render truthfully. SS_UNKNOWN_ERROR (0) through
++ * SS_O_VOL_PEER_PRI (-20), every success code and every enum drbd_ret_code
++ * are numerically identical in both dialects. From SS_INTERRUPTED (-21)
++ * down, DRBD 9 has nine codes 8.4 numbers differently (SS_INTERRUPTED
++ * collides with 8.4's SS_OUTDATE_WO_CONN) or lacks entirely (8.4 ends at
++ * SS_AFTER_LAST_ERROR = -22); passed through raw they would print a wrong
++ * message or "unknown error code". Map each to the nearest 8.4 code whose
++ * string does not mislead: the interrupted, timed-out and retried
++ * handshake cases to SS_IN_TRANSIENT_STATE ("retry"), a blocking
++ * read-only opener to SS_DEVICE_IN_USE, a handshake-forced disconnect to
++ * SS_CW_FAILED_BY_PEER, and the quorum, weak-connectivity, bitmap
++ * negotiation and sentinel codes, which have no 8.4 meaning, to
++ * SS_UNKNOWN_ERROR. compat84_put_outcome() is the only place a
++ * drbd_state_rv reaches the v1 wire.
++ */
++static inline enum drbd_state_rv drbd_state_rv_84(enum drbd_state_rv rv)
++{
++	switch (rv) {
++	case SS_INTERRUPTED:
++	case SS_TIMEOUT:
++	case SS_HANDSHAKE_RETRY:
++		return SS_IN_TRANSIENT_STATE;
++	case SS_PRIMARY_READER:
++		return SS_DEVICE_IN_USE;
++	case SS_HANDSHAKE_DISCONNECT:
++		return SS_CW_FAILED_BY_PEER;
++	case SS_WEAKLY_CONNECTED:
++	case SS_NO_QUORUM:
++	case SS_ATTACH_NO_BITMAP:
++	case SS_AFTER_LAST_ERROR:
++		return SS_UNKNOWN_ERROR;
++	default:
++		return rv;
 +	}
-+
-+	return rv;
 +}
 +
-+static void dtt_debugfs_show_stream(struct seq_file *m, struct socket *socket)
-+{
-+	struct sock *sk = socket->sk;
-+	struct tcp_sock *tp = tcp_sk(sk);
++/*
++ * Fused v1 SIB_SYNC_PROGRESS event, called from update_on_disk_bitmap()
++ * (drbd_sender.c), mainline 8.4's own call site; already throttled there
++ * by drbd_lazy_bitmap_update_due().
++ */
++void compat84_notify_sync_progress(struct drbd_peer_device *peer_device);
++#else
++static inline void drbd_md_decode_84(struct meta_data_on_disk_84 *on_disk, struct drbd_md *md) {};
++static inline void drbd_md_encode_84(struct drbd_device *device,
++	struct meta_data_on_disk_84 *buffer) {};
++static inline int drbd_setup_node_ids_84(struct drbd_connection *connection, struct drbd_path *path,
++			   unsigned int peer_node_id) { return 0; };
++static inline bool drbd_show_legacy_device(struct seq_file *seq, void *v) { return false; };
++static inline u32 drbd_pack_state_84(struct drbd_device *device) { return 0; };
++static inline void drbd_get_syncer_progress_84(struct drbd_peer_device *pd,
++		enum drbd_repl_state repl_state, unsigned long *rs_total,
++		unsigned long *bits_left, unsigned int *per_mil_done) {};
++static inline void compat84_notify_sync_progress(struct drbd_peer_device *peer_device) {};
++#endif  /* CONFIG_DRBD_COMPAT_84 */
 +
-+	seq_printf(m, "unread receive buffer: %u Byte\n",
-+		   tp->rcv_nxt - tp->copied_seq);
-+	seq_printf(m, "unacked send buffer: %u Byte\n",
-+		   tp->write_seq - tp->snd_una);
-+	seq_printf(m, "send buffer size: %u Byte\n", sk->sk_sndbuf);
-+	seq_printf(m, "send buffer used: %u Byte\n", sk->sk_wmem_queued);
-+}
-+
-+static void dtt_debugfs_show(struct drbd_transport *transport, struct seq_file *m)
-+{
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	enum drbd_stream i;
-+
-+	/* BUMP me if you change the file format/content/presentation */
-+	seq_printf(m, "v: %u\n\n", 0);
-+
-+	for (i = DATA_STREAM; i <= CONTROL_STREAM ; i++) {
-+		struct socket *socket = tcp_transport->stream[i];
-+
-+		if (socket) {
-+			seq_printf(m, "%s stream\n", i == DATA_STREAM ? "data" : "control");
-+			dtt_debugfs_show_stream(m, socket);
-+		}
-+	}
-+
-+}
-+
-+static int dtt_add_path(struct drbd_path *drbd_path)
-+{
-+	struct drbd_transport *transport = drbd_path->transport;
-+	struct drbd_tcp_transport *tcp_transport =
-+		container_of(transport, struct drbd_tcp_transport, transport);
-+	struct dtt_path *path = container_of(drbd_path, struct dtt_path, path);
-+
-+	clear_bit(TR_ESTABLISHED, &drbd_path->flags);
-+	INIT_LIST_HEAD(&path->sockets);
-+
-+	if (!test_bit(DTT_CONNECTING, &tcp_transport->flags))
-+		return 0;
-+
-+	return drbd_get_listener(drbd_path);
-+}
-+
-+static bool dtt_may_remove_path(struct drbd_path *drbd_path)
-+{
-+	return !test_bit(TR_ESTABLISHED, &drbd_path->flags);
-+}
-+
-+static void dtt_remove_path(struct drbd_path *drbd_path)
-+{
-+	drbd_put_listener(drbd_path);
-+}
-+
-+static int __init dtt_initialize(void)
-+{
-+	dtt_csocket_recv = alloc_workqueue("dtt_csocket_recv",
-+					   WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
-+	if (!dtt_csocket_recv)
-+		return -ENOMEM;
-+	return drbd_register_transport_class(&tcp_transport_class,
-+					     DRBD_TRANSPORT_API_VERSION,
-+					     sizeof(struct drbd_transport));
-+}
-+
-+static void __exit dtt_cleanup(void)
-+{
-+	destroy_workqueue(dtt_csocket_recv);
-+	drbd_unregister_transport_class(&tcp_transport_class);
-+}
-+
-+module_init(dtt_initialize)
-+module_exit(dtt_cleanup)
++#endif  /* __DRBD_LEGACY_84_H */
 -- 
 2.55.0
 
