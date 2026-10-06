@@ -1,125 +1,128 @@
-Received: from mail-pj1-f47.google.com (mail-pj1-f47.google.com [209.85.216.47])
+Received: from mail-ed1-f51.google.com (mail-ed1-f51.google.com [209.85.208.51])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id E0EC722A4EE
-	for <drbd-dev@lists.linux.dev>; Tue,  6 Oct 2026 03:57:36 +0000 (UTC)
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=209.85.216.47
-ARC-Seal:i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
-	t=1791259060; cv=none; b=elsRUeXXDZPd4X0IuQoTYgBhYoKNTE5LxF57w7Ji9AwcWkXNbEBgRQnKrkKh1ngmIcu8WP6+6JbwTUScA45tC0HY3tusjeRQJI7onhLF1WfFOG4HMCREFVEDm5fjWsQAp28ZYtOLH2p+k+io01rYN6OYsi3pJB2IWSCyHAL1M78=
-ARC-Message-Signature:i=1; a=rsa-sha256; d=subspace.kernel.org;
-	s=arc-20240116; t=1791259060; c=relaxed/simple;
-	bh=AKFO+6kMRIf999SHyvoUrdjxxCfFmmXdHeh9Zljcz8g=;
-	h=From:To:Cc:Subject:Date:Message-ID:MIME-Version; b=pJQ4HqLVNcWscPQzpknc5oEqKwliT+b7TgBtX0l+ht14u0/4SsCP5cEH/fKCdDgL77VqgsJqKi8Y4Ey66/SZ4c+VszSz39GRCtSU5dy8vaWyhiBOaYgkDjSTyn7SgQ8S+yyG8cNkJWuU6TBNKpy101Jf9rLFLZ5IqpSUKvlu8lo=
-ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=fail (p=none dis=none) header.from=isslab.korea.ac.kr; spf=none smtp.mailfrom=isslab.korea.ac.kr; dkim=pass (2048-bit key) header.d=isslab-korea-ac-kr.20251104.gappssmtp.com header.i=@isslab-korea-ac-kr.20251104.gappssmtp.com header.b=UUFLZ7U+; arc=none smtp.client-ip=209.85.216.47
-Authentication-Results: smtp.subspace.kernel.org; dmarc=fail (p=none dis=none) header.from=isslab.korea.ac.kr
-Authentication-Results: smtp.subspace.kernel.org; spf=none smtp.mailfrom=isslab.korea.ac.kr
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 1F4103B8BC1
+	for <drbd-dev@lists.linux.dev>; Tue,  6 Oct 2026 07:49:01 +0000 (UTC)
+Authentication-Results: smtp.subspace.kernel.org; arc=pass smtp.client-ip=209.85.208.51
+ARC-Seal:i=2; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
+	t=1791272944; cv=pass; b=Zk0BJKpJvYwk7QPvtiKlNsSICAvjw+uQgjIOi800vEIywTJKdE0P0caHnkPfGsgcUWeuvKJKerZdbf51iKYPhnj3GleiN26tYrrEx5ABMQq1zdAeFgHGb3dumfj4yzx8F3iPIzer0eBIiSCFxMGlBRH5jYQ5xGk2rxaHMdsgZac=
+ARC-Message-Signature:i=2; a=rsa-sha256; d=subspace.kernel.org;
+	s=arc-20240116; t=1791272944; c=relaxed/simple;
+	bh=EjxOLQXTiEKUjAkVwjaXXFmEhgPUo75BO536t5uUPtI=;
+	h=MIME-Version:References:In-Reply-To:From:Date:Message-ID:Subject:
+	 To:Cc:Content-Type; b=pyz8vvWNsARSwVgx1ok0C+jZlDQUGStENkQVC4qBQtLqiXi+Skee9F16FMkEotxPQuwlFHxadgc2BLVp1uBLBBdaSN9CALkoetVU9Ids1CkU4r44XVO5lIkvFE+Goy7u+LD8OMQBijxJpvR6I/BoTqt3lWJ9QFfN8D6yQrRYVRA=
+ARC-Authentication-Results:i=2; smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com; spf=pass smtp.mailfrom=linbit.com; dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.b=sOC+aSMg; arc=pass smtp.client-ip=209.85.208.51
+Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com
+Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=linbit.com
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key) header.d=isslab-korea-ac-kr.20251104.gappssmtp.com header.i=@isslab-korea-ac-kr.20251104.gappssmtp.com header.b="UUFLZ7U+"
-Received: by mail-pj1-f47.google.com with SMTP id 98e67ed59e1d1-3a4a7eb86a4so354148a91.3
-        for <drbd-dev@lists.linux.dev>; Mon, 05 Oct 2026 20:57:36 -0700 (PDT)
+	dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.b="sOC+aSMg"
+Received: by mail-ed1-f51.google.com with SMTP id 4fb4d7f45d1cf-6aa97edc48cso633604a12.3
+        for <drbd-dev@lists.linux.dev>; Tue, 06 Oct 2026 00:49:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1791272940; cv=none;
+        d=google.com; s=arc-20260327;
+        b=jTTJultqvXDAoJnPpf38EQ+978fQHSlDM5LBIwbFh3C3KEx0FE4puYRAKswHZ6PoXe
+         /w8M5qrcKGACjqSM+UNHACyyfP7UGS1he/18KPx64Gj/mXXtCPzqY/7vvLNNhLv6jqOu
+         uVlh4ZVwLIZ7vIgddod2BfHzksLlJ/o6cS/VRSA1ASnz3pvYv81DbPwGqjwbqvLVHzMg
+         TWSCsMOv/6rFlNXKXut7AmmvTLA8FruPdnulVhy/RMDqkt5iBEf06EjuLigU/QCgXK5W
+         CUj7t7Vn8fqYX5cfIwWiiHnW66C5kipib8uFmPEYxykcXTEBwh+4+3FO5uLrZrS0SDJv
+         LI3Q==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=EjxOLQXTiEKUjAkVwjaXXFmEhgPUo75BO536t5uUPtI=;
+        fh=U9do9q1TCA/NRbK6aaUWE3E6wDTpZmT8q2BfY6w+Cmk=;
+        b=Lj7KgVJrk3fguways5yevnPxOp1BajMC5qJG3M0Sc6d83W2vZe2OI/BLEFBOVSVQ2C
+         dR+v+1XfMFt9Ml4wuOVgGtbkvBTfh8vhBbO3qLfV938V9FOIazbziQNVwijE0yGhWwhJ
+         jKY1Dod2nOrtmDgFS+jM5D6Bxsu1jjFLPTSrUZLu9SmhmwVu//7IesV/doLSwvz7gZ1i
+         RR0z32Qd+jgedWB+LqZRq2Mgeoi3HIUpnlZWs+//Nx5hHFVm3kBCH6uWanX+3J5qbcqW
+         lB8/kn/THD4Ksj/89hSkFzBi+7TKNUEsLoVV+VxJi/eqsD1KWRizPk0G/jSlosV0/chB
+         KBEg==;
+        darn=lists.linux.dev
+ARC-Authentication-Results: i=1; mx.google.com; arc=none
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=isslab-korea-ac-kr.20251104.gappssmtp.com; s=20251104; t=1791259056; x=1791863856; darn=lists.linux.dev;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:from:to:cc:subject:date:message-id:reply-to:content-type;
-        bh=FIg2j8cR5l8EWHD0aFToxc23c2wafCfRdD264dRHKCg=;
-        b=UUFLZ7U+jSySkaRePB02zNqLQEJwYCv9MLZBp3xyfsaDxd0j9p5xwhZte04ev0otC9
-         B0gR9Db7qBY95ASZ9bxgpyuFJTCpxinbr2XR6T3kB7p296SH5w1wzU9bodI7psUi0pq0
-         hKmsoIthZweIMVCYiUiesO5gbVT7TltIhwy8Z8ah1mXzzOgE3KRBN67UV53+fjUy4NYt
-         vGOkk1XbYK/7NSNbgcpLd91Ik43kSnZj3AqLf07NQNHxyZv9fFvwz1R3tuhgCFMrYFRJ
-         YXYo7+yVuorgRYVNpnAMoqru/X8OlqVtB397fLKLFg44rvbu74dZO6ykS6hlm1R581qT
-         Kd+A==
+        d=linbit.com; s=google; t=1791272940; x=1791877740; darn=lists.linux.dev;
+        h=content-type:cc:to:subject:message-id:date:from:in-reply-to
+         :references:mime-version:from:to:cc:subject:date:message-id:reply-to
+         :content-type;
+        bh=EjxOLQXTiEKUjAkVwjaXXFmEhgPUo75BO536t5uUPtI=;
+        b=sOC+aSMg52Odd4hzOfF0pREp5HXWE0a0iKElYd1cp1Y52ECwtgjKYsJwem1emokvlF
+         49CHuS9+YcdAO0TguicMQj79hXLjL5HP+KnSmHNqiw8PsexwJBqfcsDnVvhoPsoV5ivO
+         bMY8LDX2FFl3d4xZ3ge5uVioKGqVkGpOo7SAgj0KonMQVH9noqPfYjDxcKFodCUWLZbn
+         nEcjRY1ZjX8Ya3z1pYKVmrHiOSVROOx87buEktqjUh53nOfY5Tqy0I6MBYOwiMTs4SHC
+         Z6S+F79ZfSEE84NEiMQG5cqnHiKMer3uF+4oaEXSJJmCt2FlE7anuIY2fcER8WqSw1Z6
+         xw4A==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20260707; t=1791259056; x=1791863856;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:x-gm-gg:x-gm-message-state:from:to:cc:subject:date
-         :message-id:reply-to:content-type;
-        bh=FIg2j8cR5l8EWHD0aFToxc23c2wafCfRdD264dRHKCg=;
-        b=gsOM3CDH/a2/+xWfyYUG2P3Nnsl8oeJ1iMMPys5xGTyM+g41QQuCeS5LpYLwqNbHD7
-         84FlOPrnt1Tn5l5/HdCWjZ5POnt7hdOoodRE67aie3IpDHMcJY+XmBunBrsiTNZejjbl
-         wC9JAfoOd9WJ765YYNnm8929pzUXkcg6juoD+k6Cb50FPxo/C4H3XEFhWhCeuShfowYL
-         Gfrom4QISTgqBPN4k88YjOvFVLziSwObdEQJ+xy5Y48UMe+7MQGRlX+8wqWeL+O4nbBm
-         cW/Ztjt6cx+u78UnnZdrOqbic2YfYjSjViRc56R1wXyS4WsE2H00XmaAgatIYfxhZrBB
-         WnXQ==
-X-Forwarded-Encrypted: i=1; AKwUvBxWVYE5YbBFz9K5euAkbL3R4Xa+W5ps1b5/scZANaJBBpI3Pp8wj5iSP1K3epYPawRfO7fruN1sKw==@lists.linux.dev
-X-Gm-Message-State: AFq9FYKLzcYwnigCoQCcgUBZM/VLlfmI46VWyoziK3jxbPbifiNxnRTB
-	dPrD02mapaqVCP4Qsm8NiTL8tL7S3Krk6IpCgrOwLUg05Q7k5kIEMTbi+BqujXuLv3g=
-X-Gm-Gg: AYBFou1x6kJz7J1PkY97VjUlgPE1Sv7Rn3KPcPux9fL3hPeKyGMkfFlKKvqjBVzfCVi
-	LNflgZEGeFXkOU5rBY/rLuE1w8bitFd7gV5EyLHmal96C/Xwgb0yfthW37SG1kbbMetpXTRCoLF
-	opI2kB9vJbycqd4T3yiksFkmAhZRK7+zRIk041OFNtnym2O3bRBQsxTg3nmSMPYe57nOs4WJhQB
-	a2rn76M47JZAgpATDjjPzgEfOJbXoyxzIjyOV79X+vRYKdqcjwceuHflHS8zNaIFG1QQSqWhxZx
-	l0CGw/8kt6PXCf8XlcQAGeFbfgDpUh2IEjFso6SK0DW7ixJ0lBs3JVTZxZcmrOcCTSfKv+sRc5Z
-	yzh/+VzO9XLi4wcQt4eDCPNvQ2N40TS/mzbmw2m3NnD044MQ3t5//Z75rnGfSrQUTMBhalQ+rqF
-	Pw4IW5f03MmUPCakOQPVXi3cQ4aVSLKo+wanErj0X9fUiqqtawXnVRlqKkCy7SO2BWR71onPiwF
-	HbYsyEQyaIOZGemYkrmDA==
-X-Received: by 2002:a17:90b:3d43:b0:3a0:7591:ad7a with SMTP id 98e67ed59e1d1-3a8726b57a2mr111120a91.5.1791259055781;
-        Mon, 05 Oct 2026 20:57:35 -0700 (PDT)
-Received: from yhlee-960QFG.Davolink ([2406:5900:1044:110c:5364:bba9:2adf:d611])
-        by smtp.gmail.com with ESMTPSA id 98e67ed59e1d1-3a853e66d7fsm2543601a91.5.2026.10.05.20.57.32
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Mon, 05 Oct 2026 20:57:35 -0700 (PDT)
-From: Yehyeong Lee <yhlee@isslab.korea.ac.kr>
-To: Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>,
-	Jens Axboe <axboe@kernel.dk>,
-	drbd-dev@lists.linux.dev,
-	linux-block@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Cc: Yehyeong Lee <yhlee@isslab.korea.ac.kr>,
-	stable@vger.kernel.org
-Subject: [PATCH] drbd: reject an out-of-range offset when decoding a compressed bitmap
-Date: Tue,  6 Oct 2026 12:57:13 +0900
-Message-ID: <20261006035715.354417-1-yhlee@isslab.korea.ac.kr>
-X-Mailer: git-send-email 2.43.0
+        d=1e100.net; s=20260707; t=1791272940; x=1791877740;
+        h=content-type:cc:to:subject:message-id:date:from:in-reply-to
+         :references:mime-version:x-gm-gg:x-gm-message-state:from:to:cc
+         :subject:date:message-id:reply-to:content-type;
+        bh=EjxOLQXTiEKUjAkVwjaXXFmEhgPUo75BO536t5uUPtI=;
+        b=OK6D+R+bTUdhri+zOggrrvAcywOoY4kQiIaWcoaDQO10CqvZAB/wxQvxSkoA+U8xjC
+         QupNuTPKXeTuDn6bXd9iHcDM2AYLcGlpbOdV0y34bPvDbOymWJQ/6J+Dh31C5loJ6p9/
+         3PGV6L2P5Rc/KIo+0NlwiZUlIRbkd2saQb7mlH1ieQMjq/wVFSLzzuvreP1VyLQ3Bywh
+         DbUM9PnyD5nOwkkFAljYkFF6Lfsu/TxOP+wxc44F7sgJVyES2jGrPkc4bjXbMJAInWIJ
+         2oOI5mFXvh4V5YH0h+Gck931xkU/4FHWdoIBZb3ffKxoSvg/S2RZGP+a0Brh1C0N0L4I
+         6HgA==
+X-Forwarded-Encrypted: i=1; AKwUvByyBlWuRiXL17VV4uwD9VFDoqeSTbHPFy5/PMHDl6ibnu4L5/IxR6poxDGbF4r2SYCIA/ExBlJVkg==@lists.linux.dev
+X-Gm-Message-State: AFq9FYLZ1Hu46HKwLLQ5aYNYiNL+OHZJs9RgFgt0HrCSmkgHOD3qW6kZ
+	dhptQFr5okGgprW65wCqOVJ82YwyuiKieyoMZP32EP0sbccSH5yMc2hkFSaXv9pqJZcegXI5ud9
+	+i7dhSPofWT7CdmPtaVcVsdmZsVgCVPHw1Cn+uk4+sg==
+X-Gm-Gg: AYBFou1crDKHsunos5+o/iBbhCRLL6BBz0DV6sVjMZwYsX1Lq9KM5lxP9osA8G+0VSq
+	VZj9v40RBhj7S5v3Bb0tN75zzdwBoapYMDOsBsLrP67GLe4GFalfviVJW2SHvGdO3gjGFUECg/9
+	8BHeVJADiflC3mGGq8ERp5SCVizBn60SCpsdWKwMIeYPlojcOeBThd/sEshZksAxh8YlGeMEQ+g
+	Mu9dwmHLrwa/euS68gtEob47mN9QcuuWFdLmKS56NOQXBjgNXMIdbnnex5aptGGhAzWsfLUTVDg
+	AODDH79OwaH0O25pH1v8Bk9qUB4DHHtjbqMTVa9NhXtnfgb1LxSp6TgnJBw=
+X-Received: by 2002:a05:6402:1907:b0:6ac:bd53:d29a with SMTP id
+ 4fb4d7f45d1cf-6afe290339fmr597357a12.3.1791272940042; Tue, 06 Oct 2026
+ 00:49:00 -0700 (PDT)
 Precedence: bulk
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
 List-Subscribe: <mailto:drbd-dev+subscribe@lists.linux.dev>
 List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+References: <20261006035715.354417-1-yhlee@isslab.korea.ac.kr>
+In-Reply-To: <20261006035715.354417-1-yhlee@isslab.korea.ac.kr>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+Date: Tue, 6 Oct 2026 09:48:48 +0200
+X-Gm-Features: AclHuK93qFWTt0rPdrolX-1FvRtK-xCdn7iYpv4S1vx0jkfxOiNyhJFdse2ACcs
+Message-ID: <CADGDV=V5NJViqSKS0JpFrm1U_2pGRBf1iE30hn+yuR7NmN9iXQ@mail.gmail.com>
+Subject: Re: [PATCH] drbd: reject an out-of-range offset when decoding a
+ compressed bitmap
+To: yhlee@isslab.korea.ac.kr
+Cc: lars.ellenberg@linbit.com, christoph.boehmwalder@linbit.com, 
+	axboe@kernel.dk, drbd-dev@lists.linux.dev, linux-block@vger.kernel.org, 
+	linux-kernel@vger.kernel.org, stable@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
 
-recv_bm_rle_bits() decodes a run-length-encoded bitmap from the peer and
-accumulates the bit position s across the runs.  The upper bound
-(e >= c->bm_bits) is only checked in the branch taken for a set-bits
-(toggle) run, so a clear run advances s with no check at all.  A peer can
-make s run past the bitmap with a single run; it is stored in
-c->bit_offset unvalidated, recv_bm_rle_bits() returns "not done"
-(s != c->bm_bits), and receive_bitmap() goes on to the next packet.
+On Tue, Oct 06, 2026 at 03:57 UTC, Yehyeong Lee wrote:
+> recv_bm_rle_bits() decodes a run-length-encoded bitmap from the peer and
+> accumulates the bit position s across the runs. The upper bound
+> (e >= c->bm_bits) is only checked in the branch taken for a set-bits
+> (toggle) run, so a clear run advances s with no check at all.
 
-The following plain P_BITMAP packet computes c->bm_words - c->word_offset,
-which underflows once word_offset is past bm_words, and drbd_bm_merge_lel()
-turns the result into an out-of-range word offset.  drbd_bm_merge_lel()
-only WARN_ON()s that and proceeds into bm_word_to_page_idx(), which
-BUG_ON()s on the out-of-range page index.  A malicious or buggy peer can
-thus panic the node with a crafted bitmap during the bitmap exchange.
+Thanks for the report and the analysis, this is correct.
 
-Reject a decoded offset that is past the bitmap.  s == c->bm_bits is the
-normal end-of-bitmap signal and must still be accepted, so bound with '>'.
+> + if (s > c->bm_bits) {
+> + drbd_err(peer_device, "bitmap overflow (s:%lu) while decoding bm RLE packet\n", s);
+> + return -EIO;
+> + }
 
-Fixes: b411b3637fa7 ("The DRBD driver")
-Cc: stable@vger.kernel.org
-Signed-off-by: Yehyeong Lee <yhlee@isslab.korea.ac.kr>
----
- drivers/block/drbd/drbd_receiver.c | 5 +++++
- 1 file changed, 5 insertions(+)
+Checking only after the loop is not sufficient, though. A single VLI
+code decodes to a run length of up to 2^56 + some, and one compressed
+bitmap packet can carry a few hundred such codes.
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 2135c14354a85..b3da2bcb646a7 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -4559,6 +4559,11 @@ recv_bm_rle_bits(struct drbd_peer_device *peer_device,
- 		have += bits;
- 	}
- 
-+	if (s > c->bm_bits) {
-+		drbd_err(peer_device, "bitmap overflow (s:%lu) while decoding bm RLE packet\n", s);
-+		return -EIO;
-+	}
-+
- 	c->bit_offset = s;
- 	bm_xfer_ctx_bit_to_word_offset(c);
- 
--- 
-2.43.0
+Please check every run right after decoding it, before s is advanced:
 
+if (rl > c->bm_bits - s) {
+drbd_err(...);
+return -EIO;
+}
+
+That keeps s <= c->bm_bits throughout, so neither s nor e can wrap,
+and since rl >= 1 it also implies e < c->bm_bits for set runs.
+
+Could you send a v2 along those lines?
+
+Best regards,
+Philipp
