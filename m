@@ -1,68 +1,69 @@
-Received: from mail-wr1-f54.google.com (mail-wr1-f54.google.com [209.85.221.54])
+Received: from mail-wr1-f46.google.com (mail-wr1-f46.google.com [209.85.221.46])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id D113649E5FC
-	for <drbd-dev@lists.linux.dev>; Tue,  6 Oct 2026 16:03:55 +0000 (UTC)
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=209.85.221.54
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 2132A45C700
+	for <drbd-dev@lists.linux.dev>; Tue,  6 Oct 2026 16:06:18 +0000 (UTC)
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=209.85.221.46
 ARC-Seal:i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
-	t=1791302637; cv=none; b=SSfMdBhlhQV/bXaQCBXN0KFirkMhziscANX0A7BVXrwimnpjyMRIa+K5+EtuNVLBM07pJma8UBWdJBqxenBYHFrWPEvxLv/25UVKU/V4drChEy+ou11aM5+lftl05/VB65c1Vx+cZhv19N7AuBMOyuQJhpNHBygy5LrbIO0MvuY=
+	t=1791302781; cv=none; b=KfZZ1urrVjCv8iNjtbIRgnleYOJNwwZISLfYiXUAsfeJKD3z/ZNHbOC4m2gKn6kKYDhTl2HeOAjoC0mdhKg7rZEA8KfOhTYAwRALyHSSZCZRRXXl9+vSEDl5lfjLNXuPu5Z5LIiVeISx0Asb0Okl05UPdBptzz44Ihda9k+e7Zs=
 ARC-Message-Signature:i=1; a=rsa-sha256; d=subspace.kernel.org;
-	s=arc-20240116; t=1791302637; c=relaxed/simple;
-	bh=ejBJ34A0WaeKhICYz9jB7191YUYJRJJt9TTi/tvbCNY=;
+	s=arc-20240116; t=1791302781; c=relaxed/simple;
+	bh=v4l2oT7XpoJJY95pECWl0GI0DGTnb5r8/h9YkRUhmzM=;
 	h=Message-ID:Date:MIME-Version:Subject:To:Cc:References:From:
-	 In-Reply-To:Content-Type; b=QhdJWvdkkpnCqECGLC8PhabCZ4mCH7XUABZNGLmoemFcFeiDeYkg/UyXQaf+kAE4/ZszX26BiLLWFO0X34GhLbRjq+zcNvXrc+ez77YpiCK5YuSm5fo3CEy0BfVDDPcEpPDj7Gvn3mb4cDzv1BKE+cn6XDjLouM+HuAUwMxlvB0=
-ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com; spf=pass smtp.mailfrom=linbit.com; dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.b=E9N7k5hi; arc=none smtp.client-ip=209.85.221.54
+	 In-Reply-To:Content-Type; b=OYvv+RkrOJG67e78sNow1O1kq/ybag4QT7GKlz6Bslvl9plmQR0i3GnPhwck08UBk9aZoeZbEsRn39fNNewBOigloGeccjX1lvk1BoZqjB1ydjI1+c0BQMynjOiLlFqh/QzSax/Eg6ifHyzNUC2iId1B+hMh9m9alo1JTM5YfM8=
+ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com; spf=pass smtp.mailfrom=linbit.com; dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.b=WxMhBty6; arc=none smtp.client-ip=209.85.221.46
 Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com
 Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=linbit.com
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.b="E9N7k5hi"
-Received: by mail-wr1-f54.google.com with SMTP id ffacd0b85a97d-486e70f2457so1415998f8f.2
-        for <drbd-dev@lists.linux.dev>; Tue, 06 Oct 2026 09:03:55 -0700 (PDT)
+	dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.b="WxMhBty6"
+Received: by mail-wr1-f46.google.com with SMTP id ffacd0b85a97d-487049569b6so725065f8f.1
+        for <drbd-dev@lists.linux.dev>; Tue, 06 Oct 2026 09:06:18 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linbit.com; s=google; t=1791302634; x=1791907434; darn=lists.linux.dev;
+        d=linbit.com; s=google; t=1791302777; x=1791907577; darn=lists.linux.dev;
         h=content-transfer-encoding:content-type:in-reply-to:from
          :content-language:references:cc:to:subject:user-agent:mime-version
          :date:message-id:from:to:cc:subject:date:message-id:reply-to
          :content-type;
-        bh=vH6paKGTpK+wu4U0x6N7KJfQorX+loOh90vjv3Up694=;
-        b=E9N7k5hiPFabFvNRvlNA3TQCNc/IS2ruteV8blUmum7Ajvh3ghKH0ryz/1ELuwjrml
-         OID+0CmAw5bu1NC+s9OrR0BRdv01e/3ccT9vaVUZUHfcfEy8WwZoi4rdcEjWw6DIyrHt
-         NDT3NSkc5OzwRuX0VxSCFh6P6IrnhpZMJFuiFNiVWI3xLcVGp0H3wt19d9tCOx18Gfib
-         GBlsbcIIfUm4H0kl6Spxjxa7GgXIVH5lb6uBziMlDUiX4drONnNfZGl/h3SQgbjZH9UG
-         J9HESLn7enkrFyv97k46ksjl3kS5W9h7Zrl1VjFCf3xuvbDMvL28RsdmBIWbBVsDAhlZ
-         MEHA==
+        bh=hXaWhmFAy6cyrLqO6zX4eG/+lUuNb4r/xV4XwQ3HDVU=;
+        b=WxMhBty60gwFQnhvafmxJRRz+LChpDWBdTFpgGb7nG48m9nK3e2eHKOYU1VgiQfAnO
+         wE+KyyLboPtE/MJIvgf1TeJpH6oS0nvv03g4SVEXyWvjFHuaPDtc6XWjkUQpFkssMSSI
+         8ch9CIz/ksGCLnEFfNddziatSwRaSHKStnHL8sLdwT9EzcQHL1De82wl6HBncKqDECBR
+         RBZuNtmhhC8OWi8bruFbSpOfCiJ7L5eLXu+Stvu4d2DKHa/Knsgdj/n9ST1bOzNkcVZK
+         Ub5Gr2O8Zyl3kgay8O4KIbqvYEqL1u1oC26wpiMZ0/K4USE439Z3fsvVFPYILfb1QuPk
+         2gHQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20260707; t=1791302634; x=1791907434;
+        d=1e100.net; s=20260707; t=1791302777; x=1791907577;
         h=content-transfer-encoding:content-type:in-reply-to:from
          :content-language:references:cc:to:subject:user-agent:mime-version
          :date:message-id:x-gm-gg:x-gm-message-state:from:to:cc:subject:date
          :message-id:reply-to:content-type;
-        bh=vH6paKGTpK+wu4U0x6N7KJfQorX+loOh90vjv3Up694=;
-        b=iL/4RCcHDevcEO3bwn7aLuOk2NR1EGGvE23wyP21/yMsyF6E3EaER8TOsnJsBh7+zu
-         h729/TvOtF5LTcec0E/gddt7F7uNGbOby7pPDpZoTFCCcEg+X0jwoXkDq20CoWL+AEgA
-         zeS/TqTBzzHOXx+0FF2GhGkaa0uKyUeRg/BMNeSytCeENAclif3UQWGhxroFfmABidgE
-         Jzz9ACQL4B6jBPXIaZQSuVMfTEvI8mHl2NKn4mCzHcX5oOkhtTz76s+fns7cOUcDE7FQ
-         KcrsgR3eHd7ToPFvPi5ZFm2lSBwNiuCbAsKwc0VhXxMHm718UluEzBcdRiXQ1r+3oeDv
-         21kA==
-X-Forwarded-Encrypted: i=1; AKwUvBx/umt/UfdfLKOikORX0XAafkNEUWz6uup/q4Fg3SROxDx4zEfd3FGjUbMvSvrkWBvxoM/2R1JFTg==@lists.linux.dev
-X-Gm-Message-State: AFq9FYJ72EQdYDQOD6Oj0C3aBFYqLsmAbYEV/Oz1RmucYbwsOJtzWTIq
-	OaHbZFQyAzAOWmaab/G2fCD2yr3hdC5yyUJ2YUAC7X7mAtSuLhi8H3UYY4Ku4W87kK0=
-X-Gm-Gg: AYBFou23in50cL4WbG0vrHQBlDYcp3wZciwz049i0n26+Bv0lwtNiJb7233fMcAbH7H
-	eI/V7YZ3q+7NbE/ktm44FGTsOxciyGbAVBkDPCphQ9LuGrYyuXXT5+6w3ou6Tc1Lf7RN8+3tKq7
-	alm8UFr5x1RhIBeEoxRu6PAlT8dbIcB3H4uvzJoiq8SrdSMADrMXARI9moeVMn2w26EEM35YPD8
-	HL//6u51c3e6k+igFy4MDILiMLNqz8N/6m6yhQAA18HfFgVtXMtIWxNEMuFJ+3bX2BRbT/0+Y78
-	fiZE5EFhEWrenEYdLyl1zlcWTbdp6uhNVuIBTBNcFUjj7UYaPMAPtybC5qEPhkYq+5EViyRK62B
-	lOZj4YbyFBQCEHeH3GVvvsRhrX7NHi5dktmf/DKqv6ZwA6T2LD+2blvIxs0QBkYYSAqfJkCNUfm
-	ywlIHCeIbcqrkOdjL9T5URWYuGmj3OPS41Z5iis9ZigQRQYXTZGV0b9v2YFdJAFWESXHzrD8cSO
-	p2uw/jipDcGUm3AjMCiDLNsW4mmaB4DpfLkkPFbpMdUDDJ7aDI7Tq1/W8wCxEL3Vw==
-X-Received: by 2002:a05:6000:4313:b0:48a:fbd2:c2b6 with SMTP id ffacd0b85a97d-48c4801c363mr19266196f8f.55.1791302632870;
-        Tue, 06 Oct 2026 09:03:52 -0700 (PDT)
+        bh=hXaWhmFAy6cyrLqO6zX4eG/+lUuNb4r/xV4XwQ3HDVU=;
+        b=apxwZUZ6HCUUTSSzA2LZmZjMpvYARbEbPU3Ijbl2nO0d3DTV5+ie3aGT12KkVHSM56
+         F/tyEQc475X4q9h1g/1Z/7iOkilQFz+fYVsy4YRpOqhw45lb15yZEdV1/qqzhSnXP/Zm
+         zKMJvRGLtqImTVH9VUEO/jwv5QeEB6vNSu7VkKtqS4uOagbxjsbg/mU7DCfaNLvW0eD7
+         SiZX0mGaAK0ZL0FbQel4BVPkapuRHZLUJv954xzxt03N2dlA/Xkp7qzVgc/fcefcBOml
+         CZlYSuaW8xccnfYRXlm8KBpcVZJ8YZNrJzeynhZPMivDfroa44NviJDRX/E/t2ehE94N
+         MwFQ==
+X-Forwarded-Encrypted: i=1; AKwUvBzdzwF51pTcnU8E4vv+/TuTpwD6y7e5YOdtSEfX1MwKjhjqLnNze3YpdWKg/+riWGdMV04B9SgZyQ==@lists.linux.dev
+X-Gm-Message-State: AFq9FYJZlVKh2v0qnws4PYQUcHMI57zfJEh84ymBLVAdXrH9W5FTF9L2
+	Nnw6NifwdRq3m8vvFYtGx7DkkzAiFZ+nXNa7B9QKHxWs+KDwv0HmNZwHCzDPn5T52ctu3mxE2gg
+	Q9CGKTm3xvQ==
+X-Gm-Gg: AYBFou1WsmHCIAUaJJklNwWWY5JfKa8x6CMC7h/q+ha8tDn0YXcX/21U+LjxlY0jAr/
+	nnKT3X2HoJfDePlrpz1S29B7tK2k8lw/XCIi/QrHK6pi/MQo3dfvUvYbTSsnQuV8TDK5gbek6rD
+	SlHcKD84VRZn27odFjycSDBbnNG3zT6+Ze/tt7ROaa54NvlixzpDtxKhSCFTq2htUmfHcrkDCXm
+	WEfwP1obpqxFzmydYXwqH20nD2FwvUdft1uT11f0KsfdApealI7lMyhBLILkJPnPGZhvbMlUPoN
+	wZ4DFjUrfZU+CZEYHNBAtiyM20g6BYJSrZcH8kioNObPDnc2QAs2+iw/dcuvV25JdUF5DYIOVDo
+	I9N15rOnse3Ds2wclSInyAvVdnu5/b0zTd97xg823FQraQOEIl/WxTxsHjUbqPPkR/Esanlw8v6
+	zAyCxD81onCzNkX2SkWLetnzO3gM4bN0MDEGQfrnuemPZeVET24ImsUFLNpnTotWaCvlUg4qbJr
+	jPARfjqU8na340fLga2HynVDh60a2dXFaf5n0OAZFfMoOxVWwVTDbXlOxv3F6RinA==
+X-Received: by 2002:a05:6000:38d:b0:48b:a6:61b0 with SMTP id ffacd0b85a97d-48c6d1d9260mr3171130f8f.47.1791302777202;
+        Tue, 06 Oct 2026 09:06:17 -0700 (PDT)
 Received: from ?IPV6:2001:4bc9:b00f:d376:7c33:9a50:ef33:f391? ([2001:4bc9:b00f:d376:7c33:9a50:ef33:f391])
-        by smtp.gmail.com with ESMTPSA id ffacd0b85a97d-48c71d2e2e9sm364931f8f.46.2026.10.06.09.03.51
+        by smtp.gmail.com with ESMTPSA id ffacd0b85a97d-48c71d2eeb6sm361132f8f.43.2026.10.06.09.06.15
         (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
-        Tue, 06 Oct 2026 09:03:52 -0700 (PDT)
-Message-ID: <0d3a8391-0de9-4b9f-b14a-9d4f33d2e7fd@linbit.com>
-Date: Tue, 6 Oct 2026 18:03:50 +0200
+        Tue, 06 Oct 2026 09:06:16 -0700 (PDT)
+Message-ID: <b6e99af8-994c-45c6-bc7d-8d1e6ba5f0a0@linbit.com>
+Date: Tue, 6 Oct 2026 18:06:15 +0200
 Precedence: bulk
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
@@ -70,48 +71,53 @@ List-Subscribe: <mailto:drbd-dev+subscribe@lists.linux.dev>
 List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 MIME-Version: 1.0
 User-Agent: Mozilla Thunderbird
-Subject: Re: [PATCH v2 06/20] drbd: add DAX/PMEM support for metadata access
+Subject: Re: [PATCH v2 18/20] drbd: add the "drbd2" genl family
 To: Jens Axboe <axboe@kernel.dk>
 Cc: Philipp Reisner <philipp.reisner@linbit.com>,
  Lars Ellenberg <lars@linbit.com>, drbd-dev@lists.linux.dev,
  linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
- Dan Williams <djbw@kernel.org>, Vishal Verma <vishal.l.verma@intel.com>,
- Dave Jiang <dave.jiang@intel.com>,
- Alison Schofield <alison.schofield@intel.com>, nvdimm@lists.linux.dev
+ Donald Hunter <donald.hunter@gmail.com>, Jakub Kicinski <kuba@kernel.org>
 References: <20261006154607.3936501-1-christoph.boehmwalder@linbit.com>
- <20261006154607.3936501-7-christoph.boehmwalder@linbit.com>
+ <20261006154607.3936501-19-christoph.boehmwalder@linbit.com>
 Content-Language: en-US
 From: =?UTF-8?Q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-In-Reply-To: <20261006154607.3936501-7-christoph.boehmwalder@linbit.com>
+In-Reply-To: <20261006154607.3936501-19-christoph.boehmwalder@linbit.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 
-On 10/6/26 17:45, Christoph Böhmwalder wrote:
-> When DRBD's metadata device resides on persistent memory (PMEM/NVDIMM),
-> accessing it by reading and writing full blocks is unnecessarily
-> costly.
-> Add a DAX-based metadata path that directly maps the metadata region,
-> enabling byte-granular, IRQ-safe access without having to go through
-> the block layer.
+On 10/6/26 17:46, Christoph Böhmwalder wrote:
+> DRBD 9's utilities need the multi-peer administration model that the
+> version-1 wire cannot express: peers identified by node id, several
+> paths per connection, per-peer-device options and statistics, and
+> notifications for all of those. Rather than bump the "drbd" family
+> and break every existing drbd-utils, add a second family, "drbd2",
+> written as a YNL specification in Documentation/netlink/specs/ and
+> following current generic netlink conventions: strict policies with
+> ranges, nested objects, split do/dump ops, extended ACKs for errors,
+> and a proper uapi header.
 > 
-> The PMEM path also introduces a more efficient activity log layout:
-> instead of writing journal transactions, the in-memory LRU-cache hash
-> table is stored directly in persistent memory and updated in-place.
-> Similarly, the resync bitmap is accessed directly from PMEM rather than
-> being loaded into and flushed from DRAM.
+> drbd2_nl_gen.[ch] and include/uapi/linux/drbd2.h are generated from
+> the spec with tools/net/ynl and are not edited by hand.
+> drbd_nl_drbd2.c is the struct drbd_nl_dialect adapter for the family.
+> Both families are registered by the same driver and operate on the
+> same objects; a resource created through either is visible through
+> both, within what each wire format can express. drbd2 is always
+> registered, so with DRBD_COMPAT_84=n it is the only family.
 > 
-> This is compiled in only when CONFIG_DEV_DAX_PMEM is enabled.
-> 
-> Co-developed-by: Philipp Reisner <philipp.reisner@linbit.com>
-> Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 > Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 > ---
->   drivers/block/drbd/Makefile        |   1 +
->   drivers/block/drbd/drbd_dax_pmem.c | 172 +++++++++++++++++++++++++++++
->   drivers/block/drbd/drbd_dax_pmem.h |  43 ++++++++
->   3 files changed, 216 insertions(+)
->   create mode 100644 drivers/block/drbd/drbd_dax_pmem.c
->   create mode 100644 drivers/block/drbd/drbd_dax_pmem.h
-
-Sorry, the CCs for DAX got dropped, adding them now. Original link:
-https://lore.kernel.org/linux-block/20261006154607.3936501-7-christoph.boehmwalder@linbit.com/
+>   Documentation/netlink/specs/drbd2.yaml | 2476 +++++++++++++++++++++++
+>   drivers/block/drbd/Kconfig             |    6 +
+>   drivers/block/drbd/Makefile            |    1 +
+>   drivers/block/drbd/drbd2_nl_gen.c      |  748 +++++++
+>   drivers/block/drbd/drbd2_nl_gen.h      |  107 +
+>   drivers/block/drbd/drbd_nl_drbd2.c     | 2533 ++++++++++++++++++++++++
+>   include/uapi/linux/drbd2.h             | 1012 ++++++++++
+>   7 files changed, 6883 insertions(+)
+>   create mode 100644 Documentation/netlink/specs/drbd2.yaml
+>   create mode 100644 drivers/block/drbd/drbd2_nl_gen.c
+>   create mode 100644 drivers/block/drbd/drbd2_nl_gen.h
+>   create mode 100644 drivers/block/drbd/drbd_nl_drbd2.c
+>   create mode 100644 include/uapi/linux/drbd2.h
+Also CCing the YNL maintainers here. Original link:
+https://lore.kernel.org/linux-block/20261006154607.3936501-19-christoph.boehmwalder@linbit.com/
