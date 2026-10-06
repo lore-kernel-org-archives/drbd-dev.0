@@ -1,128 +1,145 @@
-Received: from mail-ed1-f51.google.com (mail-ed1-f51.google.com [209.85.208.51])
+Received: from mail-pj1-f44.google.com (mail-pj1-f44.google.com [209.85.216.44])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 1F4103B8BC1
-	for <drbd-dev@lists.linux.dev>; Tue,  6 Oct 2026 07:49:01 +0000 (UTC)
-Authentication-Results: smtp.subspace.kernel.org; arc=pass smtp.client-ip=209.85.208.51
-ARC-Seal:i=2; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
-	t=1791272944; cv=pass; b=Zk0BJKpJvYwk7QPvtiKlNsSICAvjw+uQgjIOi800vEIywTJKdE0P0caHnkPfGsgcUWeuvKJKerZdbf51iKYPhnj3GleiN26tYrrEx5ABMQq1zdAeFgHGb3dumfj4yzx8F3iPIzer0eBIiSCFxMGlBRH5jYQ5xGk2rxaHMdsgZac=
-ARC-Message-Signature:i=2; a=rsa-sha256; d=subspace.kernel.org;
-	s=arc-20240116; t=1791272944; c=relaxed/simple;
-	bh=EjxOLQXTiEKUjAkVwjaXXFmEhgPUo75BO536t5uUPtI=;
-	h=MIME-Version:References:In-Reply-To:From:Date:Message-ID:Subject:
-	 To:Cc:Content-Type; b=pyz8vvWNsARSwVgx1ok0C+jZlDQUGStENkQVC4qBQtLqiXi+Skee9F16FMkEotxPQuwlFHxadgc2BLVp1uBLBBdaSN9CALkoetVU9Ids1CkU4r44XVO5lIkvFE+Goy7u+LD8OMQBijxJpvR6I/BoTqt3lWJ9QFfN8D6yQrRYVRA=
-ARC-Authentication-Results:i=2; smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com; spf=pass smtp.mailfrom=linbit.com; dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.b=sOC+aSMg; arc=pass smtp.client-ip=209.85.208.51
-Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com
-Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=linbit.com
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 3602646EC79
+	for <drbd-dev@lists.linux.dev>; Tue,  6 Oct 2026 14:15:24 +0000 (UTC)
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=209.85.216.44
+ARC-Seal:i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
+	t=1791296126; cv=none; b=LXIWpF/mubNnlT/4hK8V1lB1czGFO2iM5r83HhZnPQvVfHbcAkchPjpGww0Zqv1wk7SKToKFMsgdCZ0AVQHLZJP33ykDivSzlkwpa3GETmbMHGVmWd+sAu81LuHENBuBFht4v2IEBBC8prpLhkEE22JCdILoptuXILX45k2+THo=
+ARC-Message-Signature:i=1; a=rsa-sha256; d=subspace.kernel.org;
+	s=arc-20240116; t=1791296126; c=relaxed/simple;
+	bh=3twLCOUVctvgm+7HXE5YvCiR9KmGS4GbaF3cOWVcIN8=;
+	h=From:To:Cc:Subject:Date:Message-ID:MIME-Version; b=LtcGbgbN+MAi9xDqj6+699kw2ZPi7thx85CBZukDz0yZfYc78pou0/Y9mVH/eG3v5OnE1WE50pR/SSkvJmHJGJBKjSfzFMy2JczzZLLFFgxJyZj7r/zTkTySks5G1r5+ln6lWlV34aEOz8WOlUc/kcslwvolbFPjnIG2SQhtgrY=
+ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=fail (p=none dis=none) header.from=isslab.korea.ac.kr; spf=none smtp.mailfrom=isslab.korea.ac.kr; dkim=pass (2048-bit key) header.d=isslab-korea-ac-kr.20251104.gappssmtp.com header.i=@isslab-korea-ac-kr.20251104.gappssmtp.com header.b=rPTSQusf; arc=none smtp.client-ip=209.85.216.44
+Authentication-Results: smtp.subspace.kernel.org; dmarc=fail (p=none dis=none) header.from=isslab.korea.ac.kr
+Authentication-Results: smtp.subspace.kernel.org; spf=none smtp.mailfrom=isslab.korea.ac.kr
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.b="sOC+aSMg"
-Received: by mail-ed1-f51.google.com with SMTP id 4fb4d7f45d1cf-6aa97edc48cso633604a12.3
-        for <drbd-dev@lists.linux.dev>; Tue, 06 Oct 2026 00:49:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1791272940; cv=none;
-        d=google.com; s=arc-20260327;
-        b=jTTJultqvXDAoJnPpf38EQ+978fQHSlDM5LBIwbFh3C3KEx0FE4puYRAKswHZ6PoXe
-         /w8M5qrcKGACjqSM+UNHACyyfP7UGS1he/18KPx64Gj/mXXtCPzqY/7vvLNNhLv6jqOu
-         uVlh4ZVwLIZ7vIgddod2BfHzksLlJ/o6cS/VRSA1ASnz3pvYv81DbPwGqjwbqvLVHzMg
-         TWSCsMOv/6rFlNXKXut7AmmvTLA8FruPdnulVhy/RMDqkt5iBEf06EjuLigU/QCgXK5W
-         CUj7t7Vn8fqYX5cfIwWiiHnW66C5kipib8uFmPEYxykcXTEBwh+4+3FO5uLrZrS0SDJv
-         LI3Q==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=EjxOLQXTiEKUjAkVwjaXXFmEhgPUo75BO536t5uUPtI=;
-        fh=U9do9q1TCA/NRbK6aaUWE3E6wDTpZmT8q2BfY6w+Cmk=;
-        b=Lj7KgVJrk3fguways5yevnPxOp1BajMC5qJG3M0Sc6d83W2vZe2OI/BLEFBOVSVQ2C
-         dR+v+1XfMFt9Ml4wuOVgGtbkvBTfh8vhBbO3qLfV938V9FOIazbziQNVwijE0yGhWwhJ
-         jKY1Dod2nOrtmDgFS+jM5D6Bxsu1jjFLPTSrUZLu9SmhmwVu//7IesV/doLSwvz7gZ1i
-         RR0z32Qd+jgedWB+LqZRq2Mgeoi3HIUpnlZWs+//Nx5hHFVm3kBCH6uWanX+3J5qbcqW
-         lB8/kn/THD4Ksj/89hSkFzBi+7TKNUEsLoVV+VxJi/eqsD1KWRizPk0G/jSlosV0/chB
-         KBEg==;
-        darn=lists.linux.dev
-ARC-Authentication-Results: i=1; mx.google.com; arc=none
+	dkim=pass (2048-bit key) header.d=isslab-korea-ac-kr.20251104.gappssmtp.com header.i=@isslab-korea-ac-kr.20251104.gappssmtp.com header.b="rPTSQusf"
+Received: by mail-pj1-f44.google.com with SMTP id 98e67ed59e1d1-3964dfb5a69so436371a91.1
+        for <drbd-dev@lists.linux.dev>; Tue, 06 Oct 2026 07:15:24 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linbit.com; s=google; t=1791272940; x=1791877740; darn=lists.linux.dev;
-        h=content-type:cc:to:subject:message-id:date:from:in-reply-to
-         :references:mime-version:from:to:cc:subject:date:message-id:reply-to
-         :content-type;
-        bh=EjxOLQXTiEKUjAkVwjaXXFmEhgPUo75BO536t5uUPtI=;
-        b=sOC+aSMg52Odd4hzOfF0pREp5HXWE0a0iKElYd1cp1Y52ECwtgjKYsJwem1emokvlF
-         49CHuS9+YcdAO0TguicMQj79hXLjL5HP+KnSmHNqiw8PsexwJBqfcsDnVvhoPsoV5ivO
-         bMY8LDX2FFl3d4xZ3ge5uVioKGqVkGpOo7SAgj0KonMQVH9noqPfYjDxcKFodCUWLZbn
-         nEcjRY1ZjX8Ya3z1pYKVmrHiOSVROOx87buEktqjUh53nOfY5Tqy0I6MBYOwiMTs4SHC
-         Z6S+F79ZfSEE84NEiMQG5cqnHiKMer3uF+4oaEXSJJmCt2FlE7anuIY2fcER8WqSw1Z6
-         xw4A==
+        d=isslab-korea-ac-kr.20251104.gappssmtp.com; s=20251104; t=1791296123; x=1791900923; darn=lists.linux.dev;
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:from:to:cc:subject:date:message-id:reply-to:content-type;
+        bh=5d+qEg9Unyo+IXTg1hjwRDAAFeW42uTSWnzee3KFft8=;
+        b=rPTSQusfK7Dm4cJ2OTfkkMSKnpVgxk5JzAz5Y+akcQKhelbMlTMlqQ7+ONXlfY2FW2
+         IsiYEwAN+mIbDreYvgoXkozrvmVX2HYtvOIjgg6POvDSA6BFWjeZCalmYFdntfjNinU/
+         5X7QUJD281N7VHAa2AwQxiO4/9jLuAcFgsfPxXim6oWwSQTxMaBRBV0uibXkqzMaqbc4
+         E7JO7EVEfNMeuMIuQfKnZiww/Q/qjdMmTrbI7Ken/dIsOOgBbbT5cM2zKeD9h45dGwWL
+         HP8wX/TdBbff5jN+DCKKFxlUx4qs+3g+qfund47/Rxs+9fMytizwIvLqaldzum9d8yxm
+         lr2g==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20260707; t=1791272940; x=1791877740;
-        h=content-type:cc:to:subject:message-id:date:from:in-reply-to
-         :references:mime-version:x-gm-gg:x-gm-message-state:from:to:cc
-         :subject:date:message-id:reply-to:content-type;
-        bh=EjxOLQXTiEKUjAkVwjaXXFmEhgPUo75BO536t5uUPtI=;
-        b=OK6D+R+bTUdhri+zOggrrvAcywOoY4kQiIaWcoaDQO10CqvZAB/wxQvxSkoA+U8xjC
-         QupNuTPKXeTuDn6bXd9iHcDM2AYLcGlpbOdV0y34bPvDbOymWJQ/6J+Dh31C5loJ6p9/
-         3PGV6L2P5Rc/KIo+0NlwiZUlIRbkd2saQb7mlH1ieQMjq/wVFSLzzuvreP1VyLQ3Bywh
-         DbUM9PnyD5nOwkkFAljYkFF6Lfsu/TxOP+wxc44F7sgJVyES2jGrPkc4bjXbMJAInWIJ
-         2oOI5mFXvh4V5YH0h+Gck931xkU/4FHWdoIBZb3ffKxoSvg/S2RZGP+a0Brh1C0N0L4I
-         6HgA==
-X-Forwarded-Encrypted: i=1; AKwUvByyBlWuRiXL17VV4uwD9VFDoqeSTbHPFy5/PMHDl6ibnu4L5/IxR6poxDGbF4r2SYCIA/ExBlJVkg==@lists.linux.dev
-X-Gm-Message-State: AFq9FYLZ1Hu46HKwLLQ5aYNYiNL+OHZJs9RgFgt0HrCSmkgHOD3qW6kZ
-	dhptQFr5okGgprW65wCqOVJ82YwyuiKieyoMZP32EP0sbccSH5yMc2hkFSaXv9pqJZcegXI5ud9
-	+i7dhSPofWT7CdmPtaVcVsdmZsVgCVPHw1Cn+uk4+sg==
-X-Gm-Gg: AYBFou1crDKHsunos5+o/iBbhCRLL6BBz0DV6sVjMZwYsX1Lq9KM5lxP9osA8G+0VSq
-	VZj9v40RBhj7S5v3Bb0tN75zzdwBoapYMDOsBsLrP67GLe4GFalfviVJW2SHvGdO3gjGFUECg/9
-	8BHeVJADiflC3mGGq8ERp5SCVizBn60SCpsdWKwMIeYPlojcOeBThd/sEshZksAxh8YlGeMEQ+g
-	Mu9dwmHLrwa/euS68gtEob47mN9QcuuWFdLmKS56NOQXBjgNXMIdbnnex5aptGGhAzWsfLUTVDg
-	AODDH79OwaH0O25pH1v8Bk9qUB4DHHtjbqMTVa9NhXtnfgb1LxSp6TgnJBw=
-X-Received: by 2002:a05:6402:1907:b0:6ac:bd53:d29a with SMTP id
- 4fb4d7f45d1cf-6afe290339fmr597357a12.3.1791272940042; Tue, 06 Oct 2026
- 00:49:00 -0700 (PDT)
+        d=1e100.net; s=20260707; t=1791296123; x=1791900923;
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:x-gm-gg:x-gm-message-state:from:to:cc:subject:date
+         :message-id:reply-to:content-type;
+        bh=5d+qEg9Unyo+IXTg1hjwRDAAFeW42uTSWnzee3KFft8=;
+        b=LTK9HKmPwnSgUttXeujBu8IxBz8tdrqkdM18HoAcdf4KKnpPDjJSL6MEZqztrrCIWK
+         fGD6dMQjtQdNJxmYucQ/i48DxILtENUZpP36E5KlIrWLtpQzmaQGExxn5XFIhbPna7eb
+         fDZPUOczoW7GPmRY49GfiVvp7BVHiQZTZbbAIGDNYJLnawLpnAJhe6Bb8CeBDB5bODds
+         PbA+lLpvGxfvV2rn+6fnV/iSfEkSRg71vJrspndeucbUP/20tCL+CE8ovgGkD8iteqnS
+         GwsqkIFa522zSyA5ZqHUIfJUubY3mifWIQ/ommVv1R9Ezm/o1MQdnHbgKv3enA0QtCap
+         l+kQ==
+X-Forwarded-Encrypted: i=1; AKwUvBzbANy7mxmgl0KlsLAU9hYn01bWJlwYRAJTPjecshira+blQKRo5HO5ujRr1CmN/MibdtTurl4l7Q==@lists.linux.dev
+X-Gm-Message-State: AFq9FYKhgHO09pj9Wvzm0zmFJiweexAeMYs69UumB+/+IUBr+FE29ozb
+	ajOWl8OzPjr7rTQKgnaN1eJ43LHzPflrnFEO2GLkhBxQhxdzuMZCBaEkb1TY95vQxWQ=
+X-Gm-Gg: AYBFou0bZWMW6L+dn53Uymf6kHBDdDOHmpGO5LaXqWk4VwyVDQQFl6K1Yo/nL7Cn9bf
+	ZAEkUAHIdHZ/9L1GRUm58PU0YXDBrtS4iBNFWXYAAcek5suRkqAUfthVFVNhC+eK3tAqGJRYZbx
+	tQpaYNisZiSqvjQ4/MwfTrFSPkk/aO2so0OlISKtD9E4I8+tE9MnCN5pGFGenLzXWMIrryDQU8I
+	OdgA4QrVkRLBwici5dq74aeJMq5kkDPVj0sRSgJspCjeWcdqHlxB0Lzd4XpuUg/ueB/cJ3uP3Xs
+	uYay3Ia6kOgipxue9WVuNc+HaRjDwQ15iKB47Qbwa59lWpndolVy/ORLB2b+vriAHxrq4GlRsDw
+	Z+3MOpGs2Is+IsRmAVDSae7IwMmmlgsfhb7k9rX22kQLsLjjn416LmAZArwv7kUiNI0oTntO44N
+	8dbseDKsO5IuWg2otHTl57oJ3TQoiGAh/rniAsclCbSIKejrTmLt/2qqapbM41SGU4/abGLA74e
+	TC4BwSYwh0cY9A4+SyUOw==
+X-Received: by 2002:a17:90b:4b04:b0:3a8:5543:5572 with SMTP id 98e67ed59e1d1-3a872551602mr689793a91.1.1791296123414;
+        Tue, 06 Oct 2026 07:15:23 -0700 (PDT)
+Received: from yhlee-960QFG.Davolink ([2406:5900:1044:110c:a229:268f:9226:1ba3])
+        by smtp.gmail.com with ESMTPSA id 98e67ed59e1d1-3a8533aba95sm5917618a91.2.2026.10.06.07.15.19
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Tue, 06 Oct 2026 07:15:22 -0700 (PDT)
+From: Yehyeong Lee <yhlee@isslab.korea.ac.kr>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>,
+	Jens Axboe <axboe@kernel.dk>,
+	drbd-dev@lists.linux.dev,
+	linux-block@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Cc: Yehyeong Lee <yhlee@isslab.korea.ac.kr>,
+	stable@vger.kernel.org
+Subject: [PATCH v2] drbd: reject an out-of-range offset when decoding a compressed bitmap
+Date: Tue,  6 Oct 2026 23:15:07 +0900
+Message-ID: <20261006141509.521128-1-yhlee@isslab.korea.ac.kr>
+X-Mailer: git-send-email 2.43.0
 Precedence: bulk
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
 List-Subscribe: <mailto:drbd-dev+subscribe@lists.linux.dev>
 List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 MIME-Version: 1.0
-References: <20261006035715.354417-1-yhlee@isslab.korea.ac.kr>
-In-Reply-To: <20261006035715.354417-1-yhlee@isslab.korea.ac.kr>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Tue, 6 Oct 2026 09:48:48 +0200
-X-Gm-Features: AclHuK93qFWTt0rPdrolX-1FvRtK-xCdn7iYpv4S1vx0jkfxOiNyhJFdse2ACcs
-Message-ID: <CADGDV=V5NJViqSKS0JpFrm1U_2pGRBf1iE30hn+yuR7NmN9iXQ@mail.gmail.com>
-Subject: Re: [PATCH] drbd: reject an out-of-range offset when decoding a
- compressed bitmap
-To: yhlee@isslab.korea.ac.kr
-Cc: lars.ellenberg@linbit.com, christoph.boehmwalder@linbit.com, 
-	axboe@kernel.dk, drbd-dev@lists.linux.dev, linux-block@vger.kernel.org, 
-	linux-kernel@vger.kernel.org, stable@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 
-On Tue, Oct 06, 2026 at 03:57 UTC, Yehyeong Lee wrote:
-> recv_bm_rle_bits() decodes a run-length-encoded bitmap from the peer and
-> accumulates the bit position s across the runs. The upper bound
-> (e >= c->bm_bits) is only checked in the branch taken for a set-bits
-> (toggle) run, so a clear run advances s with no check at all.
+recv_bm_rle_bits() decodes a run-length-encoded bitmap from the peer and
+accumulates the bit position s across the runs.  The bound was only
+applied where bits are actually set: a clear run advanced s with no check
+at all, so a peer could leave c->bit_offset past the end of the bitmap
+once the bitstream ran out mid-sequence.  receive_bitmap() then carries
+that offset into the next packet, where the plain-bitmap path computes
+c->bm_words - c->word_offset, underflows it, and hands the result to
+drbd_bm_merge_lel(), which only WARN_ON()s an out-of-range word offset
+before reaching bm_word_to_page_idx() and its BUG_ON().
 
-Thanks for the report and the analysis, this is correct.
+Check each run against the remaining bitmap before advancing s.  A single
+VLI code decodes to a run length of up to about 2^56, so checking after
+the loop would leave s free to move far out of range (and in principle to
+wrap) in the middle of the sequence; bounding every run instead keeps
+s <= c->bm_bits as an invariant, which also means c->bm_bits - s cannot
+underflow.  The set-run bound becomes redundant once that holds --
+e >= c->bm_bits is exactly rl > c->bm_bits - s -- so drop it rather than
+leave a check that can no longer fire.
 
-> + if (s > c->bm_bits) {
-> + drbd_err(peer_device, "bitmap overflow (s:%lu) while decoding bm RLE packet\n", s);
-> + return -EIO;
-> + }
+Fixes: b411b3637fa7 ("The DRBD driver")
+Cc: stable@vger.kernel.org
+Suggested-by: Philipp Reisner <philipp.reisner@linbit.com>
+Signed-off-by: Yehyeong Lee <yhlee@isslab.korea.ac.kr>
+---
+v2: per Philipp Reisner's review -- check each run before advancing s so
+    s stays <= c->bm_bits throughout (a single VLI run can be ~2^56),
+    instead of only after the loop.  The set-run bound is then redundant
+    and is dropped.
+v1: https://lore.kernel.org/all/20261006034333.351130-1-yhlee@isslab.korea.ac.kr/
 
-Checking only after the loop is not sufficient, though. A single VLI
-code decodes to a run length of up to 2^56 + some, and one compressed
-bitmap packet can carry a few hundred such codes.
+ drivers/block/drbd/drbd_receiver.c | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
 
-Please check every run right after decoding it, before s is advanced:
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 2135c14354a85..1febb5e089cc1 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -4529,12 +4529,19 @@ recv_bm_rle_bits(struct drbd_peer_device *peer_device,
+ 		if (bits <= 0)
+ 			return -EIO;
+ 
++		/*
++		 * A single run can be up to about 2^56, so check it before
++		 * advancing s: that keeps s <= c->bm_bits throughout and
++		 * leaves no way for s to wrap in the middle of the loop.
++		 */
++		if (rl > c->bm_bits - s) {
++			drbd_err(peer_device, "bitmap overflow (s:%lu rl:%llu) while decoding bm RLE packet\n",
++				 s, (unsigned long long)rl);
++			return -EIO;
++		}
++
+ 		if (toggle) {
+ 			e = s + rl -1;
+-			if (e >= c->bm_bits) {
+-				drbd_err(peer_device, "bitmap overflow (e:%lu) while decoding bm RLE packet\n", e);
+-				return -EIO;
+-			}
+ 			_drbd_bm_set_bits(peer_device->device, s, e);
+ 		}
+ 
+-- 
+2.43.0
 
-if (rl > c->bm_bits - s) {
-drbd_err(...);
-return -EIO;
-}
-
-That keeps s <= c->bm_bits throughout, so neither s nor e can wrap,
-and since rl >= 1 it also implies e < c->bm_bits for set runs.
-
-Could you send a v2 along those lines?
-
-Best regards,
-Philipp
