@@ -1,61 +1,63 @@
-Received: from mail-dy1-f180.google.com (mail-dy1-f180.google.com [74.125.82.180])
+Received: from mail-dy1-f182.google.com (mail-dy1-f182.google.com [74.125.82.182])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 243E838DC52
-	for <drbd-dev@lists.linux.dev>; Thu, 15 Oct 2026 22:28:02 +0000 (UTC)
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=74.125.82.180
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 350D53F4DC7
+	for <drbd-dev@lists.linux.dev>; Thu, 15 Oct 2026 22:28:04 +0000 (UTC)
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=74.125.82.182
 ARC-Seal:i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
-	t=1792103284; cv=none; b=oVOrdKxhVG/BrLbHpG94A0qkBQzDNsO+eTImrN5qE31i5P4oXi/lBO/si1wF9h4Y5F6IIWv7+XJhQQVvor4QsZPxINEk5e/nNTu0gWaN4ZW0DeF0Zh54tVbqqu/73hF3rOrPPyEo+16l9jSop9YnIN0svFsbRXWbmesTPSga0bU=
+	t=1792103285; cv=none; b=lbo904hYZteTDpy2Odf6MgHvRwDTKuqUG9Ggp0Z/CjAMl0MlGBlbTveGY8DdsnIwdA4doto4Ct9Ukld+Kezhb4SlM2oZgpVZvnPlTLSrK/2iK1oBmN4ixOZMTqg6DOltpIySKEUCrJEj6wPSFSq9VZs00AOCySUx4JFUjJGT6+M=
 ARC-Message-Signature:i=1; a=rsa-sha256; d=subspace.kernel.org;
-	s=arc-20240116; t=1792103284; c=relaxed/simple;
-	bh=/uz/mgNzqCCdIWB+lfcRdHFZzkBpQy210rPi/3Saxps=;
-	h=From:To:Cc:Subject:Date:Message-Id:MIME-Version; b=PXioI+GGRagYYUnaHhTuoa1O3la7D9jUcDmwTgcr7syXTDYp4XlFfqI1Il9u7A82X9p5Z6LocihhZBB4dZTTsW0yiTyJsCurxIcP3cEGYbqUJUKpaLuDTQG4RLA1fh4dOydGFDazO5zUoCZzfmdVxz7MpHaaDlsZAWOyFtmRZXs=
-ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=gmail.com; spf=pass smtp.mailfrom=gmail.com; dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b=IG8TcDlC; arc=none smtp.client-ip=74.125.82.180
+	s=arc-20240116; t=1792103285; c=relaxed/simple;
+	bh=vpqF2wsjpDekTjyXB8OhTC5nc9ODzZN9cAbZ0mIUUn4=;
+	h=From:To:Cc:Subject:Date:Message-Id:In-Reply-To:References:
+	 MIME-Version; b=Ku/fOHGuaaEfUZvDXnvOwc8Kak94dUxf+8omEqmqvkIaJk49wsd3ugy/mPmZh4I0rO3QdHbT3h6uaCSwM3PPdgKpNvueeGt9cqAlSJ3d6lWVyYOfuEVd70k8yuy2PtntbTxfpGvWFar8AsGKqoNTMJ5CHdldBBfeQXJ2WEWlVRQ=
+ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=gmail.com; spf=pass smtp.mailfrom=gmail.com; dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b=d0Pi6QOi; arc=none smtp.client-ip=74.125.82.182
 Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=gmail.com
 Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=gmail.com
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="IG8TcDlC"
-Received: by mail-dy1-f180.google.com with SMTP id 5a478bee46e88-3282db206d3so953612eec.0
-        for <drbd-dev@lists.linux.dev>; Thu, 15 Oct 2026 15:28:02 -0700 (PDT)
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="d0Pi6QOi"
+Received: by mail-dy1-f182.google.com with SMTP id 5a478bee46e88-35a31bb9fb6so1710800eec.1
+        for <drbd-dev@lists.linux.dev>; Thu, 15 Oct 2026 15:28:04 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20251104; t=1792103282; x=1792708082; darn=lists.linux.dev;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:from:to:cc:subject:date:message-id:reply-to:content-type;
-        bh=rH7qDh5A3FEMtgpSQimqE0vvF6ppC/OBh5O5bMiH+AE=;
-        b=IG8TcDlCrDVlCZmryQxZQIQKqIMNby2cbDZOFwj+N2yOnvtNH3B6UNd2l/jEYBQsOR
-         hbaXw4KZ8yKAbzHQ2CU3HkLIE2CGsqlbGXh9EiuKCXb3AuROwqoDQPMcB9qNndekRWXO
-         cV/Iq2PQ7imBs6rNfe943ub6q2wS/F9VpqILWvXxink35kbY9UyoBmAfRt5uV+L+gMyz
-         qmjQDwkspnuM6bD7zqz96hYFMlVfb4XOBrDmi7zriv/MC/vhG4T0I5aZSNiaOmPmg4Mz
-         EKarmbEWFJG+jSQB5ARsfUVk3HhB+ZXn7E4tJ0ux9juarnPc8PR/wNm4SSUw+X662WuD
-         B9Hw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20260707; t=1792103282; x=1792708082;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:x-gm-gg:x-gm-message-state:from:to:cc:subject:date
+        d=gmail.com; s=20251104; t=1792103283; x=1792708083; darn=lists.linux.dev;
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:from:to:cc:subject:date
          :message-id:reply-to:content-type;
-        bh=rH7qDh5A3FEMtgpSQimqE0vvF6ppC/OBh5O5bMiH+AE=;
-        b=v4MCEskEuABC6j33EPbtqkKFdLNpysEgOjD0BuhKhARDG/aMNQdXbapjbaD1JUnPSW
-         UPotwco0LuBQspKNJZdUi5C1/7+iDZwIwIK9mjJxQ2JyZXeuMfKsafpCT1TDkMo3Kwh7
-         NHjL3i3EXzu/KBsGnyi8W+qg/DkuOv1+c3QW7lZteCEGgaw2rjuBmQ1dELCpMuFF+c9h
-         IHiQCPiEmVrEbDbT/yKCehT5dP9JBzxvQKm60qrjxi7KV6jPZAEU6oijARYvIf4pMDN5
-         Do/YWcFWppj+iExrgej5qrw7ezEV+b7lVkerl1p4PcaSFFYGzjtFUtKLM6RVtKEtYj7y
-         1HGg==
-X-Gm-Message-State: AFq9FYI0Nb83MUlqiGZxh+L39upim/0K7EHhOZtH+LMr9XCMjEkgjI2z
-	tyEpSiRb+Vptv+0+Lo8J8Z4j/A4RKoZmhtofCYvHXc/dDXnvzVAcVP3h
-X-Gm-Gg: AYBFou3Pf3bC/+FfyCXXo4u1decL5IgJK/5RknzHMp3T6CoBtW6OdLvO4NwwRp94veM
-	Ddor2p+MyTdgLOUMkZsyRJ5Aae/BziUkElhIyk5Cl7IdSG8JOZ70ltSOCjbPWN4OoPjgxbMt3/o
-	9NICfh+U1LoFuVaoiyWCqKn+eYobxs4/tzcz5RD1zoyXgWE0fFM1CLp6ISpB/SXjJnNbGOgQ2sR
-	padsHiAPx4nqotoWfhoiBPqeGBIuVfGa6KLTw+3nS1YqAvIhuCSJvGE7VtCjwOqFO8p2z9QQFXu
-	14jRcVy5eniDG95Tk3hWRGp+F1Ou+E8pfqXZEkg/E+d3X4OsdNHWyLxXC5Dv88FIN2qtMiicGLx
-	tnffpy8NUW6qekYjnktTrNMxomV/0Mqo+UGYgCtZVLEFkWjJw2mQXIP/MNhd0yeA9MumZ/YJf6e
-	tFy51ahg2XQjE7HxV4xhyvF6htr5IxjgM5Gu3HX/Uu0lWMZcpSTchZ2WvrUO8U/+lzKSRq2m7+9
-	8JZQGuFeCtH5X9kQxZX3qW2QgagR6cCvvH3wqIDZMoWLK1hFkvlg/nKeAYhbtv6H4rPDoEpxaQ=
-X-Received: by 2002:a05:7301:e10e:b0:35c:707b:acba with SMTP id 5a478bee46e88-35c707baed8mr12276609eec.3.1792103281885;
-        Thu, 15 Oct 2026 15:28:01 -0700 (PDT)
+        bh=KBh6utbT9VXAJmle0MXKCsj9AJ6G5GAVRjk69ReJRuE=;
+        b=d0Pi6QOixqm3Yz7RIgWJT9f00c2aG0PQ//vRlgKa7XJ+0ubZwf3TsGF5YADkgDJCE0
+         lvAKXMGdDZeN20JdPHkElFVjTwNVXIVp/LpFa2BMXmYc6qKVlZuqsySWj0SP/1Q+iwHP
+         1Xzz+afKsVxmkteaNglGRzoZp+S9xVoN+0qAhq7GOtWR9vufnZWYzKKev5g3z+ri2y/j
+         9P96LThqeJ22kcu3Wxc7jzo8HTFIG9fBVFSlM8ufyC4H4CoJbC4+IIhEyK+3cOuWNlrN
+         ch9nqmAOEb6Bkq974kNyfrvmpvp5nh1s2IUjHVR7bBkUJx7DWIYBRUaaiXAtejIxeChI
+         OaoQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20260707; t=1792103283; x=1792708083;
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:x-gm-gg:x-gm-message-state:from
+         :to:cc:subject:date:message-id:reply-to:content-type;
+        bh=KBh6utbT9VXAJmle0MXKCsj9AJ6G5GAVRjk69ReJRuE=;
+        b=N4i/+GoxoZgZ4AD2ke/wLgYYb8CXU9sI1Bq2gWMcDhVT7QvfC0Oss2vf5jCiT09Gdw
+         dD/yy45jYm0FSB0UqH7TTqWINj4yKGa9JeWphKSdHybFwusJ+EmtyHLtiMsVZ3+YK9mE
+         AgaeIRZuYEucxCsFUgaP+KQhmP+QkwyutAw7/uuN3bsgRufH5Dg3WKG1kHzCqT3JwGiB
+         EXgoC+aL9VJz5MT+DLyDlXaoslCGhs2tRO/vqbOWUnD41ao/Y1jomu1CmrqFwWMg4qMi
+         69ARG3gPrDvazzaDnHZp6X29wpsBKACmBy7zR34BbSeYvw595vPHYv/YqcOEpuHzgEke
+         iEMQ==
+X-Gm-Message-State: AFq9FYKof1s0cBBCPknO54RsYioms+Av1hRL1MkW+tZGCQ/fsyR/t44n
+	sSmk/BnXya4NdQzTr+7FQqQDa6KM++u9PBymp13Tc1CHWRn0y22btpjP
+X-Gm-Gg: AYBFou2A1N0pa39ZOemwDxYeIW3H72ZqFPcLHLd4Q2QiN+eHaaiEl6Fo0orlsgpE/fT
+	pZNTS4N0iphJm7wxVmFv3dQzv0gVvx508UY+BqYc4w9krKgOOMpND/ewkdbuyIWDG3b+BWYLNY2
+	bjJPxjFCLPGrQZf6X/Pulj7MygA/TpsPmYbuhUP2WvDyvDiSm+hAgNnudpXwTqKG0ehjLqwKtR2
+	NFKtOr2RM5nxw7VD41pQ6+k4erPdXcJ+kOrN3gsIbm07CbnSmxEFGAWHAffWZJvDifyMDXRxsMr
+	19Uai8tm3d85DXe8FjuV29ERlf3DXHwBZYmqaENMyMLfz405kBRLhYNBFSnTreNjrGCPfmQCikn
+	9jSMOU2Zt9y/1/MmiT6qF7ijpMpXNfAOj+i/TNMsz32jyUDTB5DrkyPX75Z6Zhpn6kx0rVUXJQp
+	RInUM2x+FgyPa3obrKoc/ZF4hbAmOsHrHgTW5RFGLbgl56zhFZIsrxqfKtm3auSuQTOs/FLrW5/
+	8pAvicYRo65d9zXOztRgx/8dGDuhOWKneuP1jV4Zi+jJmHBVEmVt8hZZ6xQBRbHmi7E9oKVlvk=
+X-Received: by 2002:a05:7301:4b09:b0:351:2958:1740 with SMTP id 5a478bee46e88-3537e088bf1mr27576078eec.37.1792103282862;
+        Thu, 15 Oct 2026 15:28:02 -0700 (PDT)
 Received: from yibos-mbp.3500.dhcp.asu.edu ([2620:d8:8000:8078:404b:acf5:562d:50f2])
-        by smtp.gmail.com with ESMTPSA id 5a478bee46e88-36081fa5a6esm873307eec.16.2026.10.15.15.28.01
+        by smtp.gmail.com with ESMTPSA id 5a478bee46e88-36081fa5a6esm873307eec.16.2026.10.15.15.28.02
         (version=TLS1_3 cipher=TLS_CHACHA20_POLY1305_SHA256 bits=256/256);
-        Thu, 15 Oct 2026 15:28:01 -0700 (PDT)
+        Thu, 15 Oct 2026 15:28:02 -0700 (PDT)
 From: Yibo Liu <yiboliume@gmail.com>
 To: Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
@@ -65,10 +67,12 @@ Cc: drbd-dev@lists.linux.dev,
 	linux-block@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	Yibo Liu <yiboliume@gmail.com>
-Subject: [PATCH 0/2] drbd: validate payload sizes received from the peer
-Date: Thu, 15 Oct 2026 15:27:58 -0700
-Message-Id: <20261015222800.85928-1-yiboliume@gmail.com>
+Subject: [PATCH 1/2] drbd: reject data replies whose size does not match the request
+Date: Thu, 15 Oct 2026 15:27:59 -0700
+Message-Id: <20261015222800.85928-2-yiboliume@gmail.com>
 X-Mailer: git-send-email 2.39.5 (Apple Git-154)
+In-Reply-To: <20261015222800.85928-1-yiboliume@gmail.com>
+References: <20261015222800.85928-1-yiboliume@gmail.com>
 Precedence: bulk
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
@@ -77,45 +81,64 @@ List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 
-Two places in the DRBD receive path take a payload size from the peer's
-packet header and use it without comparing it to the size they expect.
-Commit bd910a7660d2 ("drbd: reject data replies with an out-of-range
-payload size") already rejects negative sizes in recv_dless_read();
-these patches cover the remaining cases:
+A node that reads from its peer (it has no local disk, the area is not
+up to date locally, or read-balancing chose the peer) sends a
+P_DATA_REQUEST for req->i.size bytes, and recv_dless_read() copies the
+matching P_DATA_REPLY into the original bio. Commit bd910a7660d2
+("drbd: reject data replies with an out-of-range payload size") rejects
+a negative payload size, but a reply that is shorter or longer than the
+request is still accepted.
 
-1/2 rejects a P_DATA_REPLY whose size differs from the read request.
-    A short reply currently completes the read successfully with part
-    of the bio never written.
+A shorter reply only fills the start of the bio. data_size still drops
+to zero in the copy loop, so the final D_ASSERT() does not fire, and
+the read completes successfully although the rest of the caller's
+buffer was never written. With a proxy that cut one reply down to
+1 KiB, a 4 KiB O_DIRECT read returned 4096 with the last 3 KiB of the
+buffer unchanged and nothing in the kernel log. A longer reply leaves
+the excess in the socket, where it is parsed as the next packet header.
 
-2/2 rejects P_CSUM_RS_REQUEST and P_OV_REPLY packets whose digest
-    length does not match the configured algorithm, and makes the
-    worker compare digests only when their sizes match. A short digest
-    currently causes an out-of-bounds read in memcmp(), and a huge one
-    triggers a page allocator warning.
+A correct peer always replies with exactly the requested size. Reject
+any other size, as is already done for negative sizes.
 
-Like the earlier fixes, this only matters for a peer that does not
-follow the protocol; a correct peer always sends the expected sizes.
+Fixes: b411b3637fa7 ("The DRBD driver")
+Cc: stable@vger.kernel.org
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: Yibo Liu <yiboliume@gmail.com>
+---
 
-The problems were found with the help of an AI coding assistant and
-were reproduced on block-7.3 before posting (details below the "---" of
-each patch). Testing:
-- before/after runs of the reproducer in an arm64 virtme-ng KASAN guest
-- a complete csums-alg resync and an online verify as regression tests
-- each patch built with W=1 and sparse (C=2), arm64, gcc 13.3: no new
-  warnings
-- checkpatch.pl --strict clean
-Not built with clang or for other architectures.
+Notes:
+    - Reproduced on block-7.3 (41cab3a71dc7) in an arm64 virtme-ng guest,
+      with two DRBD 8.4 resources connected over loopback through a proxy
+      that rewrites packets. A diskless Primary read 4 KiB with O_DIRECT
+      while the proxy cut the P_DATA_REPLY to 1 KiB of data. Before: read()
+      returned 4096, the last 3072 bytes of the buffer were never written,
+      and nothing was logged. After: "Invalid data reply size 1024, expected
+      4096", the connection is dropped and the read fails with -EIO.
+      Unmodified 4 KiB reads succeed before and after. The harness is
+      available on request.
+    - recv_dless_read() in LINBIT's DRBD 9 tree, which the pending DRBD 9
+      rework series is based on, has the same check, so the series probably
+      needs this change too. I have not checked the posted series itself.
 
-Yibo Liu (2):
-  drbd: reject data replies whose size does not match the request
-  drbd: validate digest size in checksum resync and verify requests
+ drivers/block/drbd/drbd_receiver.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
- drivers/block/drbd/drbd_receiver.c | 14 ++++++++++++--
- drivers/block/drbd/drbd_worker.c   |  8 ++++----
- 2 files changed, 16 insertions(+), 6 deletions(-)
-
-
-base-commit: 41cab3a71dc7be62114d91cc849424879062d324
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 2135c14354a8..97b306676626 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1810,8 +1810,9 @@ static int recv_dless_read(struct drbd_peer_device *peer_device, struct drbd_req
+ 		data_size -= digest_size;
+ 	}
+ 
+-	if (data_size < 0) {
+-		drbd_err(peer_device, "Invalid data reply size\n");
++	if (data_size < 0 || data_size != req->i.size) {
++		drbd_err(peer_device, "Invalid data reply size %d, expected %u\n",
++			 data_size, req->i.size);
+ 		return -EIO;
+ 	}
+ 
 -- 
 2.39.5 (Apple Git-154)
 
