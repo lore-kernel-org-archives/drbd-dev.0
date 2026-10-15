@@ -1,63 +1,63 @@
-Received: from mail-dy1-f182.google.com (mail-dy1-f182.google.com [74.125.82.182])
+Received: from mail-dy1-f181.google.com (mail-dy1-f181.google.com [74.125.82.181])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 350D53F4DC7
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id CCE814EFFCF
 	for <drbd-dev@lists.linux.dev>; Thu, 15 Oct 2026 22:28:04 +0000 (UTC)
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=74.125.82.182
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=74.125.82.181
 ARC-Seal:i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
-	t=1792103285; cv=none; b=lbo904hYZteTDpy2Odf6MgHvRwDTKuqUG9Ggp0Z/CjAMl0MlGBlbTveGY8DdsnIwdA4doto4Ct9Ukld+Kezhb4SlM2oZgpVZvnPlTLSrK/2iK1oBmN4ixOZMTqg6DOltpIySKEUCrJEj6wPSFSq9VZs00AOCySUx4JFUjJGT6+M=
+	t=1792103286; cv=none; b=WTxAajmbnX4Y6IKSjrk3C4Kjm26diAmG2VS2LyPZqutiQkcKOxgT3/QYtSwU8gpizr4OtI+gfEFGmQxCHqFVIzGqqXBuT8aT4zcuEXWClwy4lQabcAWCdbnzNOHOYQ5wGtd79Y21qgWuhwoOdFI7oSlz0zcWawnZtf7oJ43LZNA=
 ARC-Message-Signature:i=1; a=rsa-sha256; d=subspace.kernel.org;
-	s=arc-20240116; t=1792103285; c=relaxed/simple;
-	bh=vpqF2wsjpDekTjyXB8OhTC5nc9ODzZN9cAbZ0mIUUn4=;
+	s=arc-20240116; t=1792103286; c=relaxed/simple;
+	bh=bVJbmuh2Z6L0fhHJG0FQsb2y8FSWqxobc73yJaXV8aU=;
 	h=From:To:Cc:Subject:Date:Message-Id:In-Reply-To:References:
-	 MIME-Version; b=Ku/fOHGuaaEfUZvDXnvOwc8Kak94dUxf+8omEqmqvkIaJk49wsd3ugy/mPmZh4I0rO3QdHbT3h6uaCSwM3PPdgKpNvueeGt9cqAlSJ3d6lWVyYOfuEVd70k8yuy2PtntbTxfpGvWFar8AsGKqoNTMJ5CHdldBBfeQXJ2WEWlVRQ=
-ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=gmail.com; spf=pass smtp.mailfrom=gmail.com; dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b=d0Pi6QOi; arc=none smtp.client-ip=74.125.82.182
+	 MIME-Version; b=slUxRclPm7/uObtQBsHR2XJorNhLJR2bKIWMIwb4pM9VsJKV0gAHIewPhCklbGVzlVTopGUHei0ys1zTVXRMeSYsaAN9ECXGW/qU0KSqkGPo5yL0PyNDJ2Og8zVsLJXqiitOsQrt3jhATPMqYOe+J8EJxTcHNcNTjU2a59z47Vw=
+ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=gmail.com; spf=pass smtp.mailfrom=gmail.com; dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b=B6mAdZRn; arc=none smtp.client-ip=74.125.82.181
 Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=gmail.com
 Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=gmail.com
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="d0Pi6QOi"
-Received: by mail-dy1-f182.google.com with SMTP id 5a478bee46e88-35a31bb9fb6so1710800eec.1
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="B6mAdZRn"
+Received: by mail-dy1-f181.google.com with SMTP id 5a478bee46e88-35d0be18c71so467644eec.1
         for <drbd-dev@lists.linux.dev>; Thu, 15 Oct 2026 15:28:04 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20251104; t=1792103283; x=1792708083; darn=lists.linux.dev;
+        d=gmail.com; s=20251104; t=1792103284; x=1792708084; darn=lists.linux.dev;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:from:to:cc:subject:date
          :message-id:reply-to:content-type;
-        bh=KBh6utbT9VXAJmle0MXKCsj9AJ6G5GAVRjk69ReJRuE=;
-        b=d0Pi6QOixqm3Yz7RIgWJT9f00c2aG0PQ//vRlgKa7XJ+0ubZwf3TsGF5YADkgDJCE0
-         lvAKXMGdDZeN20JdPHkElFVjTwNVXIVp/LpFa2BMXmYc6qKVlZuqsySWj0SP/1Q+iwHP
-         1Xzz+afKsVxmkteaNglGRzoZp+S9xVoN+0qAhq7GOtWR9vufnZWYzKKev5g3z+ri2y/j
-         9P96LThqeJ22kcu3Wxc7jzo8HTFIG9fBVFSlM8ufyC4H4CoJbC4+IIhEyK+3cOuWNlrN
-         ch9nqmAOEb6Bkq974kNyfrvmpvp5nh1s2IUjHVR7bBkUJx7DWIYBRUaaiXAtejIxeChI
-         OaoQ==
+        bh=6uo7AcE10nfV9W8UwlYp+hn2TzXz6q+VsQs/rEy/+Mk=;
+        b=B6mAdZRn+74Uo7VJWpWleFShkMEH1yqwMuY3xgJZLN98EW1KajfM1IXwHrgyHgB6D2
+         6vCoWCFga64K7wMNzhB1qNIloh0Lm7CJAUCrYfyO2NkAExV8rFqYNxXTlKNauzt7WoLE
+         eXjteuSgBwgxfWpI3uNjtsv3ucPU7r49VVPQA7BAyA4VshMEz/9vSq4REc7snoqYU50O
+         EaCYbOIP2XAbS6gpYhWgR+FUsLHWcRwCTsvb9T6VdRreenORmJB9dGgk9+5sz8wdHf6k
+         YDqVx0DHTWicSrjzc28zluSkJowyYezICRsBOOxA7MiY3f+xty7YhPCI5CxuKeV9L5wh
+         MfKw==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20260707; t=1792103283; x=1792708083;
+        d=1e100.net; s=20260707; t=1792103284; x=1792708084;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:x-gm-gg:x-gm-message-state:from
          :to:cc:subject:date:message-id:reply-to:content-type;
-        bh=KBh6utbT9VXAJmle0MXKCsj9AJ6G5GAVRjk69ReJRuE=;
-        b=N4i/+GoxoZgZ4AD2ke/wLgYYb8CXU9sI1Bq2gWMcDhVT7QvfC0Oss2vf5jCiT09Gdw
-         dD/yy45jYm0FSB0UqH7TTqWINj4yKGa9JeWphKSdHybFwusJ+EmtyHLtiMsVZ3+YK9mE
-         AgaeIRZuYEucxCsFUgaP+KQhmP+QkwyutAw7/uuN3bsgRufH5Dg3WKG1kHzCqT3JwGiB
-         EXgoC+aL9VJz5MT+DLyDlXaoslCGhs2tRO/vqbOWUnD41ao/Y1jomu1CmrqFwWMg4qMi
-         69ARG3gPrDvazzaDnHZp6X29wpsBKACmBy7zR34BbSeYvw595vPHYv/YqcOEpuHzgEke
-         iEMQ==
-X-Gm-Message-State: AFq9FYKof1s0cBBCPknO54RsYioms+Av1hRL1MkW+tZGCQ/fsyR/t44n
-	sSmk/BnXya4NdQzTr+7FQqQDa6KM++u9PBymp13Tc1CHWRn0y22btpjP
-X-Gm-Gg: AYBFou2A1N0pa39ZOemwDxYeIW3H72ZqFPcLHLd4Q2QiN+eHaaiEl6Fo0orlsgpE/fT
-	pZNTS4N0iphJm7wxVmFv3dQzv0gVvx508UY+BqYc4w9krKgOOMpND/ewkdbuyIWDG3b+BWYLNY2
-	bjJPxjFCLPGrQZf6X/Pulj7MygA/TpsPmYbuhUP2WvDyvDiSm+hAgNnudpXwTqKG0ehjLqwKtR2
-	NFKtOr2RM5nxw7VD41pQ6+k4erPdXcJ+kOrN3gsIbm07CbnSmxEFGAWHAffWZJvDifyMDXRxsMr
-	19Uai8tm3d85DXe8FjuV29ERlf3DXHwBZYmqaENMyMLfz405kBRLhYNBFSnTreNjrGCPfmQCikn
-	9jSMOU2Zt9y/1/MmiT6qF7ijpMpXNfAOj+i/TNMsz32jyUDTB5DrkyPX75Z6Zhpn6kx0rVUXJQp
-	RInUM2x+FgyPa3obrKoc/ZF4hbAmOsHrHgTW5RFGLbgl56zhFZIsrxqfKtm3auSuQTOs/FLrW5/
-	8pAvicYRo65d9zXOztRgx/8dGDuhOWKneuP1jV4Zi+jJmHBVEmVt8hZZ6xQBRbHmi7E9oKVlvk=
-X-Received: by 2002:a05:7301:4b09:b0:351:2958:1740 with SMTP id 5a478bee46e88-3537e088bf1mr27576078eec.37.1792103282862;
-        Thu, 15 Oct 2026 15:28:02 -0700 (PDT)
+        bh=6uo7AcE10nfV9W8UwlYp+hn2TzXz6q+VsQs/rEy/+Mk=;
+        b=XpgPI6/vMSGJnPCjdZNstqsFRmEzPE7Ix+DCMmPgVd7zVmPu+42vBqwKKfPHBW/uqZ
+         J1rfR/cMXoN5FJ9sQHd6XMGRuPoTWop0kieoG4sMNX/uZGTMM+cLN05/gZBUIWAAiDTx
+         X5q8V//nFhH4Z8czT9b1lsmYZUhkgnYMaaZ65CrVW5xF6tXIg4uNa/ejRAkVY136aq0c
+         XAbc7eg/UBW/SV3bcyBgqjbi+KXTNUJx7MOg7T7pTooqio2Ul+Q6JaX2CwPxgqdzvuqE
+         bEU0Tx/hv0/Bo63eCjBgT40CbefWY0p4dm2HC0bTUVxti3JXKuvnnAAoxjr0y2mRW1/h
+         BYOA==
+X-Gm-Message-State: AFq9FYKEgMHOHTUJQRrU+U90L4ngUa7Gfr45dc1Lvdveh0elePFWBzIl
+	av0UjDbXam/Q1xE/aLsxll5LQPHyimK+gWtmfRdzottDaITgIi64LorX
+X-Gm-Gg: AYBFou2BSlS9SvggUaiR6b6MKL0g8+2V3KqGJkp0w3n1NHFBYWydZacvR7Xkly5cum5
+	ttrwLEiXYlj7qo7mR67Jkuq5wMYVg6P2NZ2Veq5uUJezBvgcu2c9nY+b/TT7Sorzl5ekNapPhJt
+	rmkVL6HNgIvPrrKHW4IjldXGCmCUOHZFPA4i8qrGEMRMrin5xiXumDacHMsYDGcuPGskpR/kre5
+	bejehPfIfmYibEz7Hb5+i5K42ofzj0wzIwbcHNZIcXL7ITiBhF/5miU2lp0XwH0np6oVXOaBOtX
+	8TJF/Ej1NfhIi3S6WRXJRcULzvcMMbtTHIoTfvAfdGz9I7HnvROaec/6uuljTs2vvUBg2lpghMz
+	9MP63nxTr5HSj5YjjK0Cb51qwCCJgvaZ6nCLMSD+/f0vFAbZt239+pw9VXhq0Zxv3zwoZ7tjw6u
+	eq3BQATbuOgg5yUIiTvXFnLC5o8tFNDdK1cI702Wy4/ozmsnhWF1K4UW0NcYvufVSnqCVKxWHHA
+	ZpyP8jinLz5ZYiESySzaL0M0clFpkD/bCPtLaCBnmJBpbRfrsaWC/WhXRK94k5JHcwu8gsz4TA=
+X-Received: by 2002:a05:7022:3a8a:b0:15b:1959:15e0 with SMTP id a92af1059eb24-182570eccd1mr1740173c88.4.1792103283611;
+        Thu, 15 Oct 2026 15:28:03 -0700 (PDT)
 Received: from yibos-mbp.3500.dhcp.asu.edu ([2620:d8:8000:8078:404b:acf5:562d:50f2])
-        by smtp.gmail.com with ESMTPSA id 5a478bee46e88-36081fa5a6esm873307eec.16.2026.10.15.15.28.02
+        by smtp.gmail.com with ESMTPSA id 5a478bee46e88-36081fa5a6esm873307eec.16.2026.10.15.15.28.03
         (version=TLS1_3 cipher=TLS_CHACHA20_POLY1305_SHA256 bits=256/256);
-        Thu, 15 Oct 2026 15:28:02 -0700 (PDT)
+        Thu, 15 Oct 2026 15:28:03 -0700 (PDT)
 From: Yibo Liu <yiboliume@gmail.com>
 To: Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
@@ -67,9 +67,9 @@ Cc: drbd-dev@lists.linux.dev,
 	linux-block@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	Yibo Liu <yiboliume@gmail.com>
-Subject: [PATCH 1/2] drbd: reject data replies whose size does not match the request
-Date: Thu, 15 Oct 2026 15:27:59 -0700
-Message-Id: <20261015222800.85928-2-yiboliume@gmail.com>
+Subject: [PATCH 2/2] drbd: validate digest size in checksum resync and verify requests
+Date: Thu, 15 Oct 2026 15:28:00 -0700
+Message-Id: <20261015222800.85928-3-yiboliume@gmail.com>
 X-Mailer: git-send-email 2.39.5 (Apple Git-154)
 In-Reply-To: <20261015222800.85928-1-yiboliume@gmail.com>
 References: <20261015222800.85928-1-yiboliume@gmail.com>
@@ -81,24 +81,44 @@ List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 
-A node that reads from its peer (it has no local disk, the area is not
-up to date locally, or read-balancing chose the peer) sends a
-P_DATA_REQUEST for req->i.size bytes, and recv_dless_read() copies the
-matching P_DATA_REPLY into the original bio. Commit bd910a7660d2
-("drbd: reject data replies with an out-of-range payload size") rejects
-a negative payload size, but a reply that is shorter or longer than the
-request is still accepted.
+receive_DataRequest() takes the digest length of P_CSUM_RS_REQUEST and
+P_OV_REPLY packets from the packet header and passes it to kmalloc()
+without any check. The worker later compares the received digest with
+one computed by the local csums or verify algorithm. A size mismatch is
+only reported by D_ASSERT(), and memcmp() runs anyway.
 
-A shorter reply only fills the start of the bio. data_size still drops
-to zero in the copy loop, so the final D_ASSERT() does not fire, and
-the read completes successfully although the rest of the caller's
-buffer was never written. With a proxy that cut one reply down to
-1 KiB, a 4 KiB O_DIRECT read returned 4096 with the last 3 KiB of the
-buffer unchanged and nothing in the kernel log. A longer reply leaves
-the excess in the socket, where it is parsed as the next packet header.
+A digest that is shorter than the algorithm's digest size therefore
+makes w_e_end_csum_rs_req() and w_e_end_ov_reply() read past the end of
+the digest_info allocation:
 
-A correct peer always replies with exactly the requested size. Reject
-any other size, as is already done for negative sizes.
+  BUG: KASAN: slab-out-of-bounds in memcmp+0x1b8/0x1d8
+  Read of size 8 at addr ffff00000a638610 by task drbd_w_r1/212
+  Call trace:
+   memcmp
+   w_e_end_csum_rs_req
+   drbd_worker
+  Allocated by task 240:
+   __kmalloc_noprof
+   receive_DataRequest
+   drbd_receiver
+
+A digest length larger than the page allocator can serve triggers the
+WARN_ON_ONCE() for oversized allocations, as GFP_NOIO does not include
+__GFP_NOWARN:
+
+  WARNING: mm/page_alloc.c:5340 at __alloc_frozen_pages_noprof
+  Call trace:
+   ___kmalloc_large_node
+   __kmalloc_noprof
+   receive_DataRequest
+   drbd_receiver
+
+Reject these packets unless the digest length matches the digest size
+of the configured csums or verify algorithm, and also reject them when
+no such algorithm is configured. In the worker, only compare digests of
+the same size: the peer can switch csums-alg or verify-alg with
+P_SYNC_PARAM after the request was received, and a size mismatch is
+then treated as "not in sync" instead of reading out of bounds.
 
 Fixes: b411b3637fa7 ("The DRBD driver")
 Cc: stable@vger.kernel.org
@@ -107,38 +127,75 @@ Signed-off-by: Yibo Liu <yiboliume@gmail.com>
 ---
 
 Notes:
-    - Reproduced on block-7.3 (41cab3a71dc7) in an arm64 virtme-ng guest,
-      with two DRBD 8.4 resources connected over loopback through a proxy
-      that rewrites packets. A diskless Primary read 4 KiB with O_DIRECT
-      while the proxy cut the P_DATA_REPLY to 1 KiB of data. Before: read()
-      returned 4096, the last 3072 bytes of the buffer were never written,
-      and nothing was logged. After: "Invalid data reply size 1024, expected
-      4096", the connection is dropped and the read fails with -EIO.
-      Unmodified 4 KiB reads succeed before and after. The harness is
-      available on request.
-    - recv_dless_read() in LINBIT's DRBD 9 tree, which the pending DRBD 9
-      rework series is based on, has the same check, so the series probably
-      needs this change too. I have not checked the posted series itself.
+    - Reproduced in the same setup with csums-alg=sha1, the proxy rewriting
+      one P_CSUM_RS_REQUEST: a 0-byte digest gives the KASAN report above,
+      a 1 GiB digest length gives the WARNING above. With the patch both are
+      rejected with "CsumRSRequest: unexpected digest size ..." and there is
+      no KASAN report or warning. A complete csums-alg resync followed by an
+      online verify with verify-alg=sha1, without tampering, still passes.
+      The harness is available on request.
+    - In LINBIT's DRBD 9 tree, receive_digest() only rejects negative sizes
+      and the sender keeps the D_ASSERT() before memcmp(), so the pending
+      DRBD 9 rework series probably needs the same checks. I have not
+      checked the posted series itself.
 
- drivers/block/drbd/drbd_receiver.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ drivers/block/drbd/drbd_receiver.c | 9 +++++++++
+ drivers/block/drbd/drbd_worker.c   | 8 ++++----
+ 2 files changed, 13 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 2135c14354a8..97b306676626 100644
+index 97b306676626..87e714477050 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1810,8 +1810,9 @@ static int recv_dless_read(struct drbd_peer_device *peer_device, struct drbd_req
- 		data_size -= digest_size;
- 	}
+@@ -2629,6 +2629,7 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
+ 	sector_t capacity;
+ 	struct drbd_peer_request *peer_req;
+ 	struct digest_info *di = NULL;
++	struct crypto_shash *tfm;
+ 	int size, verb;
+ 	struct p_block_req *p =	pi->data;
  
--	if (data_size < 0) {
--		drbd_err(peer_device, "Invalid data reply size\n");
-+	if (data_size < 0 || data_size != req->i.size) {
-+		drbd_err(peer_device, "Invalid data reply size %d, expected %u\n",
-+			 data_size, req->i.size);
- 		return -EIO;
- 	}
+@@ -2713,6 +2714,14 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
  
+ 	case P_OV_REPLY:
+ 	case P_CSUM_RS_REQUEST:
++		tfm = pi->cmd == P_OV_REPLY ? connection->verify_tfm :
++					      connection->csums_tfm;
++		if (!tfm || pi->size != crypto_shash_digestsize(tfm)) {
++			drbd_err(device, "%s: unexpected digest size %u\n",
++				 cmdname(pi->cmd), pi->size);
++			goto out_free_e;
++		}
++
+ 		di = kmalloc(sizeof(*di) + pi->size, GFP_NOIO);
+ 		if (!di)
+ 			goto out_free_e;
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 0697f99fed18..31e54960c5de 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1174,8 +1174,8 @@ int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
+ 		 * introducing more locking mechanisms */
+ 		if (peer_device->connection->csums_tfm) {
+ 			digest_size = crypto_shash_digestsize(peer_device->connection->csums_tfm);
+-			D_ASSERT(device, digest_size == di->digest_size);
+-			digest = kmalloc(digest_size, GFP_NOIO);
++			if (digest_size == di->digest_size)
++				digest = kmalloc(digest_size, GFP_NOIO);
+ 		}
+ 		if (digest) {
+ 			drbd_csum_ee(peer_device->connection->csums_tfm, peer_req, digest);
+@@ -1301,8 +1301,8 @@ int w_e_end_ov_reply(struct drbd_work *w, int cancel)
+ 		if (digest) {
+ 			drbd_csum_ee(peer_device->connection->verify_tfm, peer_req, digest);
+ 
+-			D_ASSERT(device, digest_size == di->digest_size);
+-			eq = !memcmp(digest, di->digest, digest_size);
++			eq = digest_size == di->digest_size &&
++			     !memcmp(digest, di->digest, digest_size);
+ 			kfree(digest);
+ 		}
+ 	}
 -- 
 2.39.5 (Apple Git-154)
 
