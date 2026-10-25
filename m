@@ -1,60 +1,92 @@
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=80.177.71.131
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=209.85.128.53
 ARC-Seal: i=1; d=subspace.kernel.org; s=arc20261015; a=rsa-sha256; cv=none;
-	t=1792858281;
-	b=qoz7PlnjAoDoS6rEI/aHQu9fqBLngZu0ijigmCqjXUGLCCagpZHLpLjyJtC7mMfax7lN
-	 H2EpCo2HeEadPU4V2I4UiHKuWHplzYaFks1UswTm8FMQxwI9wCAo+PAr4VM3WdlsanujK
-	 wm9lSXLUQqQIYloLmp8DnoQo2i81vqlKyA6RT29+CnGcT4J+ShjvhnoCdDrnYDAsaDo2Q
-	 SkqFUbU2EyibX0F4s6AT+TTSEI362BqPvIEeEaDr1i080ojAZ30VUP8iD0CUesOrJUqss
-	 Drz9nSltawbc4vVnwF6icDdybGzLu5ExB9q9kFQQT4XiwsgHQlU9Nd2rucfhiCM/LUg==
+	t=1792945798;
+	b=LkRNDdM2bN2vMDZq6ebyWznqcK0IBPqj2njnX7JVFYV+Rp9OE1CNrv3k9NZZyZqQqgPB
+	 B7kXMOV+p30U5NG73ERvoGfYDdSnoZY2M/TnGx5XH1ElN5IKGe3aMgXXppLK89UXO4bnX
+	 hp7TF0vDrfpgqAXkeOm2wnSw2YPHBK8qsgT6NNJlXqno/R/E9wm9PcJ+UDloYQ0AgTsk4
+	 fFtASBo6PLiXylSg82dhbYOkDDFTjwM2wNpMq4sx7eaLphWXMBGe63z2al5mgBcUaXvbG
+	 Lm+p8B6OgIvDD78bBZfZWzO0ejmXvdvFqixO3JJAZYifpDLS014gVbmY92WT1FkGC3Q==
 ARC-Message-Signature: i=1; d=subspace.kernel.org; s=arc20261015;
-	a=rsa-sha256; c=relaxed/relaxed; t=1792858281;
-	h=DMARC-Filter:Received:X-Virus-Scanned:X-Spam-Relay-Country:Received:
-	 DKIM-Signature:Received:Date:From:To:Subject:Message-ID:MIME-Version:
-	 Content-Type:Content-Disposition;
-	bh=0lRjAoHt5fBxyQQfenUWdsuajKJQVfENZtzAqzEJQ3w=;
-	b=2d0RApc+MXnp/5RowdZFjitNxdcIgoQxDrMAyuhiPkkXEaiOxfcWSD3Z3hgM+eE55/CU
-	 SkQNWbCNytRmdTkSCd7ch9XO1xrp0oZ3VkoU3aCVkkbKTcU6gv2RLMVUdXGwe6ZiGHq0u
-	 7Ul3al757PkVLzhVIUZHNxjdWvkqoxixubXB6fJGlKHZLzbQQlXeYY29AEuk/HZzxrZMv
-	 Llam/pCaL238+0kW0w8GwjK+WoQJ6GUpdyG/+es96mBlBq7iCgJn+poZZ65GEnkn22/Br
-	 8/Yn+WbNqfgmHhaIFp1LK6cxjPM8qbuRqoCGD2xHdY2iOgwTMuMXojOJphQN5V8UkNg==
+	a=rsa-sha256; c=relaxed/relaxed; t=1792945798;
+	h=DMARC-Filter:Received:DKIM-Signature:X-Google-DKIM-Signature:
+	 X-Gm-Message-State:X-Gm-Gg:X-Received:Received:Date:From:To:Cc:
+	 Subject:Message-ID:References:MIME-Version:Content-Type:
+	 Content-Disposition:In-Reply-To;
+	bh=nI+xYq05/ilJFvxkwNugXyip7U8J6e3kdg9Q/C4jBKQ=;
+	b=hs1uZxy1whL/YGtvciUQ9PG52S1PK22shdQsPEApgan8c1x8MfrSwUiVQBJbvjABNUKI
+	 sJ2eN2+489IFMgltn+monT0S8uVOZyvNsbp2MtBmAOA5qKN/Wsk9ijcn/nKsFykA1LZ8Y
+	 9HSAENlkcE+Kc+wkQW4Lhy56xdzhQuwTpMfScvxpm/ud5w94Qf3n9fWsgPiFu/MwKbXGH
+	 gu3c4OzFVFYUQzeMnfM8cvqCX9Kk6DAMNIUiFVNhQngL8V/g3RhrzGA0A+0EEqsYHf+BN
+	 ES2Kqn6JrmVF8M7GzthgqNO1zs6KeVduyWyIlX2+2qbwU1oaICTIrHOklMzGKCUXxMQ==
 ARC-Authentication-Results: i=1; smtp.subspace.kernel.org; 
-	dmarc=pass header.from=let2.com;
-	spf=pass smtp.mailfrom=let2.com;
-	dkim=pass header.d=let2.com header.i=@let2.com header.a=rsa-sha256 header.s=mail header.b=DBdLc3dy;
-	arc=none smtp.remote-ip=80.177.71.131
-Received: from static-80-177-71-131.vodafonexdsl.co.uk (static-80-177-71-131.vodafonexdsl.co.uk [80.177.71.131])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	dmarc=pass header.from=linbit.com;
+	spf=pass smtp.mailfrom=linbit.com;
+	dkim=pass header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=BhbM51XD;
+	arc=none smtp.remote-ip=209.85.128.53
+Received: from mail-wm1-f53.google.com (mail-wm1-f53.google.com [209.85.128.53])
+	(using TLSv1.3 with cipher TLS_AES_128_GCM_SHA256 (128/128 bits)
 	 key-exchange X25519 server-signature ECDSA (prime256v1) server-digest SHA256)
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id AE894606A31B
-	for <drbd-dev@lists.linux.dev>; Sat, 24 Oct 2026 16:11:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org AE894606A31B
-Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=reject dis=none) header.from=let2.com
-Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=let2.com
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 2BD9B606A31A
+	for <drbd-dev@lists.linux.dev>; Sun, 25 Oct 2026 16:29:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org 2BD9B606A31A
+Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com
+Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=linbit.com
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (1024-bit key, unprotected) header.d=let2.com header.i=@let2.com header.a=rsa-sha256 header.s=mail header.b=DBdLc3dy
-Received: from localhost (localhost [127.0.0.1])
-	by static-80-177-71-131.vodafonexdsl.co.uk (Postfix) with ESMTP id A82B12357E;
-	Sat, 24 Oct 2026 17:11:08 +0100 (BST)
-X-Virus-Scanned: amavis at let2.com
-X-Spam-Relay-Country: 
-Received: from static-80-177-71-131.vodafonexdsl.co.uk ([127.0.0.1])
- by localhost (let2.com [127.0.0.1]) (amavis, port 10024) with ESMTP
- id ZQHgB-OLN1WU; Sat, 24 Oct 2026 17:11:08 +0100 (BST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=let2.com; s=mail;
-	t=1792858268; bh=0lRjAoHt5fBxyQQfenUWdsuajKJQVfENZtzAqzEJQ3w=;
-	h=Date:From:To:Subject:From;
-	b=DBdLc3dy4Hak3/xeDrtQmWLrQrxlO3Xs2HyQUr10+ZMmug1NMSTp2n/iBmPHpk49C
-	 Qw8kRWwC4MlIoc0xoehYwWNQi+kjBD0XlNBl/QM+TM3Yk5KiGkrLxQdnNTKqsyQAYL
-	 Gj850ZsfkQwrcD8IASdPSBRLx1hIElAnsWwFfZRk=
-Received: by static-80-177-71-131.vodafonexdsl.co.uk (Postfix, from userid 1000)
-	id 24A1C23564; Sat, 24 Oct 2026 17:11:08 +0100 (BST)
-Date: Sat, 24 Oct 2026 17:11:08 +0100
-From: Dominic Ferard <dominic@let2.com>
-To: drbd-dev@lists.linux.dev
-Subject: [BUG] 9.3.4: resync between two Secondaries stuck at 100% - flush
- request never acked (2 volumes, new-peer before attach)
-Message-ID: <atzYnDQ-IN0yi3vx@let2.com>
+	dkim=pass (2048-bit key, unprotected) header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=BhbM51XD
+Received: by mail-wm1-f53.google.com with SMTP id 5b1f17b1804b1-4a2069b9710so21545555e9.2
+        for <drbd-dev@lists.linux.dev>; Sun, 25 Oct 2026 09:29:57 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linbit.com; s=google; t=1792945796; x=1793550596; darn=lists.linux.dev;
+        h=in-reply-to:content-disposition:content-type:mime-version
+         :references:message-id:subject:cc:to:from:date:from:to:cc:subject
+         :date:message-id:reply-to:content-type;
+        bh=nI+xYq05/ilJFvxkwNugXyip7U8J6e3kdg9Q/C4jBKQ=;
+        b=BhbM51XDMpvLN6o+obyQ1gFVfdyv0X0Q+XrseuiefBvUCncj64yhbi4Y2B6lMzjBjC
+         Uw0xuIAU2N2ploDwFqy7auXuN13evb0LLxhH6QDp+/PJIBmROyZQfjlTz2JcxUixM+tY
+         jLXMd9/YkAyVU8sG2mviNnYfBdyQBeeKxIiCL+Z7TFL35reoTNzr4qCWunx0ufsYxXhU
+         4Tc1fnbXhysNhPV87jbwqZ+iOogl+t3w5Ze8WtdnnaYP3bXelHJ8yM93BsiK1eF1aMus
+         thWcwNb6cbd9JPl0pmU6JxWVkePvad9sR213iAcaaWFWA8kJFqrdww9SGWyPPwZNDjPP
+         043w==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20260707; t=1792945796; x=1793550596;
+        h=in-reply-to:content-disposition:content-type:mime-version
+         :references:message-id:subject:cc:to:from:date:x-gm-gg
+         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to
+         :content-type;
+        bh=nI+xYq05/ilJFvxkwNugXyip7U8J6e3kdg9Q/C4jBKQ=;
+        b=AL6b0XWwVEvW/HFCtOQhT9J++aFLMlL5IpbKeMhD88TanCQF3yhHMYiQSzcb+7XY/O
+         q77B/tofw3ADl8HTju42P7bR0mr3aAfSBeIMcL66V33EzSFeqYYnbGwECPDUM5QXuKUs
+         5mbPCXWTVVA/nm6KWl732fASeEZUoYADrSyoGKEK6eZ3J7qDrMNV3CLoEGf3Y10sSTUz
+         vx1U0HeGIa8uBynQsxpCl6gkKhy2YrnFC4FbfAnoh235WTLFVACTQ7PNBwhpUTiR7gyv
+         Mj098Focq4lAUsY6KZICYQ/eLw7SEHWxB/e11O5nEG6cMbF4JiGCWMzrtFXSEVduzomv
+         giXQ==
+X-Gm-Message-State: AFq9FYIZVTi0Hysve9ZqEXbSBs/TMadbVjKxuNuvoNeG+WJ9mrdgnJfE
+	xBtKbtcHhEOow/AIhMKf8lOc6+fAMJPx94ineYXztpIHZL3RbAJbtaGDtIKTLJiRx9TtRPIHtC1
+	Jf/C7dH0=
+X-Gm-Gg: AYBFou0njXGRXHC0+6MpfO7c45Vxhx08VNG/G9lIuEHKEONvczHtuXWBU+bl9GpTqX9
+	uBLxUeJ1eu+xC7mrYQ+onVhEew3BjNduLNzaiGktOrxc1iv5c0JHbVW+3H/oOYHsAteir0ALgVQ
+	8jB+1CheKRQSOa++74QQUf8JTDVVzDZmDBG6y26TB3nEue7LqHUHxCw+XDU06AHoJT5UoJkgw80
+	IJh6V0bt16EZSjoMh5BUDZ8ROFfTS+XYq3ecugwksPWuNmamIl0DiUa9nFjGmxhKqvNLYp9vFAl
+	Dn/4KcEbcMqAOYvOCEtoz01vdvnQ+z7bQzBM5uMhzv3q4saLi8vZTL3V9uMz11nG5lcm7G3Z8gL
+	dOq4q7su77hzY2NIjOX19CW33iicVz6oH/TXn2Phfs5l4IO3Q+dRanvrh5nPu3wh3qZTFcpNOsR
+	GPGu06MISn6pz19b1V8tkxIZxCsMHdd4Cy2MqJByBcpiXVaSkmev4gA9fAsrMA7e7s6ZEZOMYg4
+	qapy5FhkxsmIEKr3J93/L61Zttq1iVx5fCQzt/oVsfqvulZLpBxrCGWpBiSy9XoYUf+uDWXrImF
+	ulxJwdNfcEG7RfDVd7eNmOY1oKJgenFllrdlBbw/Ow==
+X-Received: by 2002:a05:600c:1987:b0:4a1:db17:c7e6 with SMTP id 5b1f17b1804b1-4a35ac3a7b1mr73744585e9.2.1792945796403;
+        Sun, 25 Oct 2026 09:29:56 -0700 (PDT)
+Received: from ryzen9 (85-90-145-81.hdsl.highway.telekom.at. [85.90.145.81])
+        by smtp.gmail.com with ESMTPSA id 5b1f17b1804b1-4a35a30e22csm132813595e9.2.2026.10.25.09.29.55
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sun, 25 Oct 2026 09:29:55 -0700 (PDT)
+Date: Sun, 25 Oct 2026 17:29:54 +0100
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Dominic Ferard <dominic@let2.com>
+Cc: drbd-dev@lists.linux.dev
+Subject: Re: [BUG] 9.3.4: resync between two Secondaries stuck at 100% -
+ flush request never acked (2 volumes, new-peer before attach)
+Message-ID: <at4ugnJ3AYaaJDV_@ryzen9>
+References: <atzYnDQ-IN0yi3vx@let2.com>
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
 List-Post: <mailto:drbd-dev@lists.linux.dev>
@@ -66,170 +98,42 @@ Precedence: list
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <atzYnDQ-IN0yi3vx@let2.com>
 
-Hello,
+Hi Dominic,
 
-On a two-volume resource, a resync between two Secondaries reaches
-100% (out-of-sync 0) and never completes: the target stays
-Inconsistent/SyncTarget on both volumes indefinitely. It happens when
-the source was brought up with a plain "drbdadm up" and its second
-volume's peer bitmap_dagtag is higher than its first volume's. We hit
-it in production (two standby hosts, both Secondary while the Primary
-OS is down) and have reproduced it in two VMs. Details, debugfs output
-and our reading of the source are below. Please correct the analysis
-if we have it wrong.
+thank you for the excellent report. Your analysis is correct. We
+found the same bug independently, and the fix is already in git:
 
+  drbd-9.2: 24374f123a95 ("drbd: keep the dagtag of the last request
+            across several attaches")
+  https://github.com/LINBIT/drbd/commit/24374f123a95877956c3c95a5080b6afae75b28c
 
-Environment
------------
+  master:   eec2d913473b (merge of the above into drbd-9.3)
+  https://github.com/LINBIT/drbd/commit/eec2d913473bf00370b1049e549f10ac0e6181cd
 
-- drbd-dkms 9.3.4-1ppa1~resolute1 (GIT-hash
-  e59b287b199f7224468af85b68a10e83c68213f5), drbd-utils
-  9.35.0-1ppa1~resolute1, LINBIT PPA
-- Ubuntu 26.04, kernel 7.0.0-38-generic
-- 2 nodes, protocol C, 1 resource with 2 volumes, external metadata,
-  auto-promote no
+Only 9.3.4 is affected in practice. It is the first release that
+also sends the flush to Secondaries. Earlier releases flush only
+Primary peers, and a Primary's own writes move the peer acks forward.
 
-    resource r0 {
-        options { auto-promote no; }
-        net { protocol C; }
-        on pm1 {
-            node-id 0;
-            address 10.10.10.1:7799;
-            volume 0 { device /dev/drbd0; disk /dev/disk/by-partlabel/drbd-r0; meta-disk /dev/disk/by-partlabel/drbd-r0-md; }
-            volume 1 { device /dev/drbd1; disk /dev/disk/by-partlabel/drbd-r1; meta-disk /dev/disk/by-partlabel/drbd-r1-md; }
-        }
-        on pm2 {
-            node-id 1;
-            address 10.10.10.2:7799;
-            volume 0 { device /dev/drbd0; disk /dev/disk/by-partlabel/drbd-r0; meta-disk /dev/disk/by-partlabel/drbd-r0-md; }
-            volume 1 { device /dev/drbd1; disk /dev/disk/by-partlabel/drbd-r1; meta-disk /dev/disk/by-partlabel/drbd-r1-md; }
-        }
-    }
+The fix will be in 9.3.5, which we plan to release on November 9th.
 
-(Production also has al-extents 6433 and resync-controller settings;
-they are not needed to reproduce.)
+If you want to confirm the fix in your VMs before then, the commit
+above applies on top of 9.3.4.
 
+Best regards,
+Philipp
 
-Reproduction
-------------
-
-Start with both nodes connected and UpToDate.
-
-    pm1: make the resource dagtag non-zero
-      pm1# drbdadm primary r0
-      pm1# dd if=/dev/urandom of=/dev/drbd0 bs=1M count=10 oflag=direct
-      pm1# dd if=/dev/urandom of=/dev/drbd1 bs=1M count=10 oflag=direct
-
-    pm2 goes away
-      pm2# drbdadm down r0
-
-    pm1 writes vol0 FIRST, then vol1, so vol1's peer bitmap_dagtag
-    ends up higher
-      pm1# dd if=/dev/urandom of=/dev/drbd0 bs=1M count=20 oflag=direct
-      pm1# dd if=/dev/urandom of=/dev/drbd1 bs=1M count=20 oflag=direct
-      pm1# drbdadm secondary r0 && drbdadm down r0
-
-    both come back as Secondary with a plain "up" (new-peer before
-    attach)
-      pm1# drbdadm up r0
-      pm2# drbdadm up r0
-
-Peer slot 1 in pm1's metadata before the "up" (after apply-al):
-
-    vol0 peer[1]  bitmap-dagtag 0x000000000002D000
-    vol1 peer[1]  bitmap-dagtag 0x0000000000037000
-
-Result: pm2 is SyncTarget on both volumes with out-of-sync 0 and stays
-there (we watched for several minutes; in production it stayed for
-about 15 minutes until we intervened).
-
-debugfs, /sys/kernel/debug/drbd/resources/r0/connections/<peer>/debug:
-
-    pm1 (SyncSource), connection pm2:
-     resource->dagtag_sector: 225280      (0x37000, from vol1's metadata)
-    last_peer_ack_dagtag_seen: 0
-       flush_requests_dagtag: 184320      (0x2D000 = vol0's dagtag = dagtag_before_attach)
-              flush_sequence: 1
-     flush_forward_sent_mask:             (empty: never acked)
-
-    pm2 (SyncTarget), connection pm1:
-          pending_flush_mask: pm1,
-
-"drbdadm disconnect r0; drbdadm connect r0" on pm2 starts a 0 KB
-resync that also never finishes. pm1 afterwards still shows
-last_peer_ack_dagtag_seen: 0 and flush_requests_dagtag: 184320, now
-with flush_sequence: 2.
-
-"drbdadm primary r0" on pm1 plus a single 4 KiB write moves
-last_peer_ack_dagtag_seen to 225288, and the resync finishes at once.
-
-Controls (same VMs):
-
-- Vol0 written last (so vol0's peer bitmap_dagtag is higher), plain
-  "up": the resync finishes. flush_requests_dagtag = 0, while
-  last_peer_ack_dagtag_seen is also 0.
-- Equal or zero bitmap dagtags (the peer left before any writes):
-  finishes.
-- Original order, but pm1 brought up with "drbdadm adjust --skip-net
-  r0" and then "drbdadm adjust r0" (attach before new-peer): finishes
-  in 1 s. last_peer_ack_dagtag_seen = 307208 >= flush_requests_dagtag
-  = 266248.
-
-
-Analysis (from reading the 9.3.4 source)
-----------------------------------------
-
-1. "drbdadm up" issues new-resource, new-minor, new-peer, new-path,
-   peer-device-options, attach, connect (per "drbdadm -d up"), so
-   new-peer runs before any attach.
-
-2. new-peer (drbd_nl.c ~5118) initialises
-   connection->last_peer_ack_dagtag_seen = resource->dagtag_sector,
-   "so that flushes can be acked even if no further writes occur". At
-   that point the dagtag is still 0.
-
-3. Each attach calls update_resource_dagtag() (drbd_nl.c ~2843). The
-   first volume raises dagtag_sector from 0 to its max peer
-   bitmap_dagtag (dagtag_before_attach = 0). If the second volume's
-   bitmap_dagtag is higher, it sets dagtag_before_attach to the first
-   volume's (non-zero) value and dagtag_from_backing_dev to its own.
-
-4. When the SyncTarget sends P_FLUSH_REQUESTS, receive_flush_requests()
-   (drbd_receiver.c ~5176) sees dagtag_sector ==
-   dagtag_from_backing_dev, so it uses dagtag_before_attach (the
-   non-zero vol0 value) as flush_requests_dagtag.
-
-5. drbd_check_flush_dagtag_reached() (drbd_receiver.c ~12408) acks
-   only when last_peer_ack_dagtag_seen >= flush_requests_dagtag. With
-   no Primary anywhere, last_peer_ack_dagtag_seen never moves from 0,
-   so the ack never comes.
-
-6. On the target, drbd_resync_check_finished() (drbd_sender.c ~1078)
-   waits on drbd_any_flush_pending(), which is resource-wide, so both
-   volumes stay SyncTarget. (In production, one volume had already
-   enabled peer replication and the other had not.)
-
-With one volume, dagtag_before_attach stays 0 and the ack always
-passes, which is why we only started seeing this after moving from
-one volume to two.
-
-Possible fixes (your call): when an attach raises dagtag_sector, also
-bring last_peer_ack_dagtag_seen up on existing connections that have no
-Primary peer; or clamp the flush target in receive_flush_requests() so
-it cannot exceed what this node could ever see acked when it has no
-Primary peers.
-
-
-Workaround
-----------
-
-On the standby nodes we attach before creating the peer: an
-ExecStartPre= for drbd@r0.service runs "drbdadm adjust --skip-net r0"
-ahead of its normal "adjust".
-
-Happy to test patches or gather more data; the VM reproduction takes
-about two minutes.
-
-Thanks,
-Dominic Ferard
+Am Sat, Oct 24, 2026 at 05:11:08PM +0100 schrieb Dominic Ferard:
+> Hello,
+> 
+> On a two-volume resource, a resync between two Secondaries reaches
+> 100% (out-of-sync 0) and never completes: the target stays
+> Inconsistent/SyncTarget on both volumes indefinitely. It happens when
+> the source was brought up with a plain "drbdadm up" and its second
+> volume's peer bitmap_dagtag is higher than its first volume's. We hit
+> it in production (two standby hosts, both Secondary while the Primary
+> OS is down) and have reproduced it in two VMs. Details, debugfs output
+> and our reading of the source are below. Please correct the analysis
+> if we have it wrong.
+[...]
