@@ -1,92 +1,62 @@
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=209.85.128.53
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=80.177.71.131
 ARC-Seal: i=1; d=subspace.kernel.org; s=arc20261015; a=rsa-sha256; cv=none;
-	t=1792945798;
-	b=LkRNDdM2bN2vMDZq6ebyWznqcK0IBPqj2njnX7JVFYV+Rp9OE1CNrv3k9NZZyZqQqgPB
-	 B7kXMOV+p30U5NG73ERvoGfYDdSnoZY2M/TnGx5XH1ElN5IKGe3aMgXXppLK89UXO4bnX
-	 hp7TF0vDrfpgqAXkeOm2wnSw2YPHBK8qsgT6NNJlXqno/R/E9wm9PcJ+UDloYQ0AgTsk4
-	 fFtASBo6PLiXylSg82dhbYOkDDFTjwM2wNpMq4sx7eaLphWXMBGe63z2al5mgBcUaXvbG
-	 Lm+p8B6OgIvDD78bBZfZWzO0ejmXvdvFqixO3JJAZYifpDLS014gVbmY92WT1FkGC3Q==
+	t=1793083134;
+	b=1o5oJfK/4Eem0gIzZa22rRAS3EzlgSkckJogKYoCW4HRLNc7z6BK0dzp51bftzl/pWu1
+	 FuIeJPMxIDq8zPsX4gi9BvazOAynlFtcQ7yZBdUNQ9L4ZNJQtlHemkxNEBREXHJEMifLL
+	 aa3FG6sxWWpzmVIqrITPsYq17QUQwejTSRuz8Kac6TOO34lKZrgbuP+RkMq1pt0YQUpZz
+	 viJiXYE8YxnphCZci0yRi37Z0jCyo4Dxci/vBd444PM5ZElZffki2SmBYkBEm7M2reUOJ
+	 cfQoixlwG3Xdhhm2o1JavRkKW3KtwpSYp3P3O33hz+OtPzWKw3t9b9YLVWQJDTyFGcw==
 ARC-Message-Signature: i=1; d=subspace.kernel.org; s=arc20261015;
-	a=rsa-sha256; c=relaxed/relaxed; t=1792945798;
-	h=DMARC-Filter:Received:DKIM-Signature:X-Google-DKIM-Signature:
-	 X-Gm-Message-State:X-Gm-Gg:X-Received:Received:Date:From:To:Cc:
-	 Subject:Message-ID:References:MIME-Version:Content-Type:
-	 Content-Disposition:In-Reply-To;
-	bh=nI+xYq05/ilJFvxkwNugXyip7U8J6e3kdg9Q/C4jBKQ=;
-	b=hs1uZxy1whL/YGtvciUQ9PG52S1PK22shdQsPEApgan8c1x8MfrSwUiVQBJbvjABNUKI
-	 sJ2eN2+489IFMgltn+monT0S8uVOZyvNsbp2MtBmAOA5qKN/Wsk9ijcn/nKsFykA1LZ8Y
-	 9HSAENlkcE+Kc+wkQW4Lhy56xdzhQuwTpMfScvxpm/ud5w94Qf3n9fWsgPiFu/MwKbXGH
-	 gu3c4OzFVFYUQzeMnfM8cvqCX9Kk6DAMNIUiFVNhQngL8V/g3RhrzGA0A+0EEqsYHf+BN
-	 ES2Kqn6JrmVF8M7GzthgqNO1zs6KeVduyWyIlX2+2qbwU1oaICTIrHOklMzGKCUXxMQ==
+	a=rsa-sha256; c=relaxed/relaxed; t=1793083134;
+	h=DMARC-Filter:Received:X-Virus-Scanned:X-Spam-Relay-Country:Received:
+	 DKIM-Signature:Received:Date:From:To:Cc:Subject:Message-ID:
+	 MIME-Version:Content-Type:Content-Disposition;
+	bh=ERiBQUjHN6CAtGxymTpjMANU4U9+04xbfEP7Gz+8k9I=;
+	b=zfi5CkAPjxiVfuZcU5gC5PP1wOQJZEyFNAPrTltzKeZhlK4SD0eFkImH2RHdBtz+tgOi
+	 PKRMp7F3GHhfg5ORMkp/eNGrf3I7ugpd7wWfiZLQu22mo1E7r7RmNH8cg1mqT4dvkp8fv
+	 Cefi/LcFp8oIm1Xg27OStoIhSXPA/W+VkTCJM45huC6GzQbQbRyirlcKnoNGMIvNFN83O
+	 Pmewc/+rq2XZjthkMcf47GV/tXDGbtdyfpw4IAqTok3adcNh2B7+6AB7KHlW9Xe/ygBvz
+	 VUWx9z5WXwZNSvSk8tv9iorF9C2IIxM2cSZMa3Phjeo0icDlNmic1kXj89oDt2V63XA==
 ARC-Authentication-Results: i=1; smtp.subspace.kernel.org; 
-	dmarc=pass header.from=linbit.com;
-	spf=pass smtp.mailfrom=linbit.com;
-	dkim=pass header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=BhbM51XD;
-	arc=none smtp.remote-ip=209.85.128.53
-Received: from mail-wm1-f53.google.com (mail-wm1-f53.google.com [209.85.128.53])
-	(using TLSv1.3 with cipher TLS_AES_128_GCM_SHA256 (128/128 bits)
+	dmarc=pass header.from=let2.com;
+	spf=pass smtp.mailfrom=let2.com;
+	dkim=pass header.d=let2.com header.i=@let2.com header.a=rsa-sha256 header.s=mail header.b=ZcGXiTCO;
+	arc=none smtp.remote-ip=80.177.71.131
+Received: from static-80-177-71-131.vodafonexdsl.co.uk (static-80-177-71-131.vodafonexdsl.co.uk [80.177.71.131])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
 	 key-exchange X25519 server-signature ECDSA (prime256v1) server-digest SHA256)
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 2BD9B606A31A
-	for <drbd-dev@lists.linux.dev>; Sun, 25 Oct 2026 16:29:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org 2BD9B606A31A
-Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com
-Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=linbit.com
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id A799A606A31A
+	for <drbd-dev@lists.linux.dev>; Tue, 27 Oct 2026 06:38:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org A799A606A31A
+Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=reject dis=none) header.from=let2.com
+Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=let2.com
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key, unprotected) header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=BhbM51XD
-Received: by mail-wm1-f53.google.com with SMTP id 5b1f17b1804b1-4a2069b9710so21545555e9.2
-        for <drbd-dev@lists.linux.dev>; Sun, 25 Oct 2026 09:29:57 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linbit.com; s=google; t=1792945796; x=1793550596; darn=lists.linux.dev;
-        h=in-reply-to:content-disposition:content-type:mime-version
-         :references:message-id:subject:cc:to:from:date:from:to:cc:subject
-         :date:message-id:reply-to:content-type;
-        bh=nI+xYq05/ilJFvxkwNugXyip7U8J6e3kdg9Q/C4jBKQ=;
-        b=BhbM51XDMpvLN6o+obyQ1gFVfdyv0X0Q+XrseuiefBvUCncj64yhbi4Y2B6lMzjBjC
-         Uw0xuIAU2N2ploDwFqy7auXuN13evb0LLxhH6QDp+/PJIBmROyZQfjlTz2JcxUixM+tY
-         jLXMd9/YkAyVU8sG2mviNnYfBdyQBeeKxIiCL+Z7TFL35reoTNzr4qCWunx0ufsYxXhU
-         4Tc1fnbXhysNhPV87jbwqZ+iOogl+t3w5Ze8WtdnnaYP3bXelHJ8yM93BsiK1eF1aMus
-         thWcwNb6cbd9JPl0pmU6JxWVkePvad9sR213iAcaaWFWA8kJFqrdww9SGWyPPwZNDjPP
-         043w==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20260707; t=1792945796; x=1793550596;
-        h=in-reply-to:content-disposition:content-type:mime-version
-         :references:message-id:subject:cc:to:from:date:x-gm-gg
-         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to
-         :content-type;
-        bh=nI+xYq05/ilJFvxkwNugXyip7U8J6e3kdg9Q/C4jBKQ=;
-        b=AL6b0XWwVEvW/HFCtOQhT9J++aFLMlL5IpbKeMhD88TanCQF3yhHMYiQSzcb+7XY/O
-         q77B/tofw3ADl8HTju42P7bR0mr3aAfSBeIMcL66V33EzSFeqYYnbGwECPDUM5QXuKUs
-         5mbPCXWTVVA/nm6KWl732fASeEZUoYADrSyoGKEK6eZ3J7qDrMNV3CLoEGf3Y10sSTUz
-         vx1U0HeGIa8uBynQsxpCl6gkKhy2YrnFC4FbfAnoh235WTLFVACTQ7PNBwhpUTiR7gyv
-         Mj098Focq4lAUsY6KZICYQ/eLw7SEHWxB/e11O5nEG6cMbF4JiGCWMzrtFXSEVduzomv
-         giXQ==
-X-Gm-Message-State: AFq9FYIZVTi0Hysve9ZqEXbSBs/TMadbVjKxuNuvoNeG+WJ9mrdgnJfE
-	xBtKbtcHhEOow/AIhMKf8lOc6+fAMJPx94ineYXztpIHZL3RbAJbtaGDtIKTLJiRx9TtRPIHtC1
-	Jf/C7dH0=
-X-Gm-Gg: AYBFou0njXGRXHC0+6MpfO7c45Vxhx08VNG/G9lIuEHKEONvczHtuXWBU+bl9GpTqX9
-	uBLxUeJ1eu+xC7mrYQ+onVhEew3BjNduLNzaiGktOrxc1iv5c0JHbVW+3H/oOYHsAteir0ALgVQ
-	8jB+1CheKRQSOa++74QQUf8JTDVVzDZmDBG6y26TB3nEue7LqHUHxCw+XDU06AHoJT5UoJkgw80
-	IJh6V0bt16EZSjoMh5BUDZ8ROFfTS+XYq3ecugwksPWuNmamIl0DiUa9nFjGmxhKqvNLYp9vFAl
-	Dn/4KcEbcMqAOYvOCEtoz01vdvnQ+z7bQzBM5uMhzv3q4saLi8vZTL3V9uMz11nG5lcm7G3Z8gL
-	dOq4q7su77hzY2NIjOX19CW33iicVz6oH/TXn2Phfs5l4IO3Q+dRanvrh5nPu3wh3qZTFcpNOsR
-	GPGu06MISn6pz19b1V8tkxIZxCsMHdd4Cy2MqJByBcpiXVaSkmev4gA9fAsrMA7e7s6ZEZOMYg4
-	qapy5FhkxsmIEKr3J93/L61Zttq1iVx5fCQzt/oVsfqvulZLpBxrCGWpBiSy9XoYUf+uDWXrImF
-	ulxJwdNfcEG7RfDVd7eNmOY1oKJgenFllrdlBbw/Ow==
-X-Received: by 2002:a05:600c:1987:b0:4a1:db17:c7e6 with SMTP id 5b1f17b1804b1-4a35ac3a7b1mr73744585e9.2.1792945796403;
-        Sun, 25 Oct 2026 09:29:56 -0700 (PDT)
-Received: from ryzen9 (85-90-145-81.hdsl.highway.telekom.at. [85.90.145.81])
-        by smtp.gmail.com with ESMTPSA id 5b1f17b1804b1-4a35a30e22csm132813595e9.2.2026.10.25.09.29.55
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Sun, 25 Oct 2026 09:29:55 -0700 (PDT)
-Date: Sun, 25 Oct 2026 17:29:54 +0100
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: Dominic Ferard <dominic@let2.com>
-Cc: drbd-dev@lists.linux.dev
-Subject: Re: [BUG] 9.3.4: resync between two Secondaries stuck at 100% -
- flush request never acked (2 volumes, new-peer before attach)
-Message-ID: <at4ugnJ3AYaaJDV_@ryzen9>
-References: <atzYnDQ-IN0yi3vx@let2.com>
+	dkim=pass (1024-bit key, unprotected) header.d=let2.com header.i=@let2.com header.a=rsa-sha256 header.s=mail header.b=ZcGXiTCO
+Received: from localhost (localhost [127.0.0.1])
+	by static-80-177-71-131.vodafonexdsl.co.uk (Postfix) with ESMTP id 139BB23710;
+	Tue, 27 Oct 2026 06:38:35 +0000 (GMT)
+X-Virus-Scanned: amavis at let2.com
+X-Spam-Relay-Country: 
+Received: from static-80-177-71-131.vodafonexdsl.co.uk ([127.0.0.1])
+ by localhost (let2.com [127.0.0.1]) (amavis, port 10024) with ESMTP
+ id Gl3o421RBkgW; Tue, 27 Oct 2026 06:38:34 +0000 (GMT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=let2.com; s=mail;
+	t=1793083114; bh=ERiBQUjHN6CAtGxymTpjMANU4U9+04xbfEP7Gz+8k9I=;
+	h=Date:From:To:Cc:Subject:From;
+	b=ZcGXiTCOBZID42gii4z7+Gkgp/4h7yUUiIDu9GbpGTb06TL1is2TQNvUY+XBUGDY3
+	 K2oYYWsmNfpZxUgzgGEHYrKONIyfX99GrcnBNpMLCObjK763J75VSCmLp5YmBxuUTe
+	 U5v1VvtSQVlJEEPFvLGPKEfGtVDWp4GqmlhoxE0k=
+Received: by static-80-177-71-131.vodafonexdsl.co.uk (Postfix, from userid 1000)
+	id 8A45A2370F; Tue, 27 Oct 2026 06:38:34 +0000 (GMT)
+Date: Tue, 27 Oct 2026 06:38:34 +0000
+From: Dominic <dominic@let2.com>
+To: drbd-dev@lists.linux.dev
+Cc: philipp.reisner@linbit.com
+Subject: 9.3.4: resync after a crashed Primary misses blocks (silent
+ divergence) if that node was promoted in place after being Secondary under
+ another Primary
+Message-ID: <auBG6pq0aKXwupY9@let2.com>
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
 List-Post: <mailto:drbd-dev@lists.linux.dev>
@@ -98,42 +68,107 @@ Precedence: list
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <atzYnDQ-IN0yi3vx@let2.com>
 
-Hi Dominic,
+Hello,
 
-thank you for the excellent report. Your analysis is correct. We
-found the same bug independently, and the fix is already in git:
+Last week I reported the two-volume flush stall (thank you for the quick
+confirmation). While testing our failover design, we found another
+problem on 9.3.4. This one is a silent divergence, so I wanted you to
+know about it.
 
-  drbd-9.2: 24374f123a95 ("drbd: keep the dagtag of the last request
-            across several attaches")
-  https://github.com/LINBIT/drbd/commit/24374f123a95877956c3c95a5080b6afae75b28c
+SUMMARY
 
-  master:   eec2d913473b (merge of the above into drbd-9.3)
-  https://github.com/LINBIT/drbd/commit/eec2d913473bf00370b1049e549f10ac0e6181cd
+Node A has been Secondary while node B was Primary. A is then promoted
+in place, with no down/attach in between. A writes after a disconnect
+and goes down without demoting (as a root-on-DRBD Primary does at
+shutdown). When A comes back, it is SyncSource and the resync completes
+normally. But some blocks that A wrote after the disconnect are not
+resynced, so the two disks then differ while both report UpToDate.
 
-Only 9.3.4 is affected in practice. It is the first release that
-also sends the flush to Secondaries. Earlier releases flush only
-Primary peers, and a Primary's own writes move the peer acks forward.
+If A is taken down and up (detach/attach) before the in-place
+promotion, the resync is correct.
 
-The fix will be in 9.3.5, which we plan to release on November 9th.
+ENVIRONMENT
 
-If you want to confirm the fix in your VMs before then, the commit
-above applies on top of 9.3.4.
+- drbd-dkms 9.3.4-1ppa1~resolute1 (GIT-hash e59b287b199f), drbd-utils
+  9.35.0-1ppa1~resolute1 (LINBIT PPA)
+- Ubuntu 26.04, kernel 7.0.0-38-generic, two VirtualBox VMs
+- 2 nodes, protocol C, one resource with 2 volumes, external metadata,
+  auto-promote no, no fencing. al-extents 6433. Same r0.res as in my
+  24 Oct report.
+- The Ubuntu drbd-utils units drbd-graceful-disconnect.service (active)
+  and drbd-graceful-down.service (masked on A, to mimic a root-on-DRBD
+  Primary that can't demote) are in use.
+- Every "up" is attach first (adjust --skip-net, then adjust), to avoid
+  the bug from my last report.
+- Not tried on git master.
+
+REPRODUCTION (A = pm1, node-id 0; B = pm2, node-id 1; ext4 on volume 0)
+
+1. Connected, both UpToDate, both Secondary.
+2. On B: drbdadm primary r0; mount /dev/drbd0; write a file; umount;
+   drbdadm secondary r0. (Still connected throughout; A stays up.)
+3. On A, with no down/up: drbdadm primary r0; mount /dev/drbd0; write
+   10 MiB to a file; sync.
+4. On A: systemctl reboot. drbd-graceful-disconnect disconnects first
+   (B goes Outdated). The ext4 unmount then writes the superblock etc.
+   after the disconnect. A never demotes (graceful-down is masked).
+5. A boots; drbdadm adjust --skip-net r0; drbdadm adjust r0.
+   A reports "Marked additional 0 KB as out-of-sync based on AL", is
+   SyncSource and resyncs; both volumes end UpToDate.
+6. Compare the backing devices: volume 0 differs.
+
+Reproduced 3 times out of 3 (two scripted runs and one first sighting).
+
+RESULTS
+
+Failing run (with step 2), volume 0:
+
+  pm1 kernel: drbd r0/0 drbd0 pm2: self B83C73CDF184048C:74B0ADF14B06F564:DA5CAA724336D98E:A923FA7E7C56E246 bits:3072 flags:2022
+  pm1 kernel: drbd r0/0 drbd0 pm2: peer 74B0ADF14B06F564:0000000000000000:A923FA7E7C56E246:D8B36CA284BD34EA bits:0 flags:120
+  pm1 kernel: drbd r0/0 drbd0 pm2: uuid_compare()=source-use-bitmap by rule=bitmap-self
+  pm1 kernel: drbd r0/0 drbd0 pm2: Began resync as SyncSource (will sync 12288 KB [3072 bits set]).
+  after resync: md5 of the volume 0 backing device differs between the
+  nodes; the differing 4 KiB blocks are block 0 (4 MiB extent 0, the ext4
+  superblock) and block 65536 (offset 256 MiB, extent 64). Volume 1
+  matches.
+
+Control without step 2 (A was never Secondary under a Primary B):
+same sequence otherwise, "will sync 24576 KB [6144 bits set]", and the
+checksums match afterwards.
+
+Control with step 2 plus "drbdadm down r0; adjust --skip-net; adjust"
+on A before step 3: 6144 bits, checksums match.
+
+So the bitmap A brings back covers 3072 bits instead of 6144, and the
+missing part includes blocks A wrote after the disconnect.
+
+OUR GUESS AT THE MECHANISM (not verified in the code)
+
+While B was Primary, we see "Disabling local AL-updates (optimization)"
+and later "Enabling local AL-updates" in the logs. We suspect that
+extents made active in A's in-memory activity log while it was
+Secondary (from B's replicated writes) stay "hot" after A is promoted.
+A's own later writes to those extents then cause no on-disk AL
+transaction. A never demotes, so its in-memory bitmap is never written
+out. After the crash, applying the on-disk AL doesn't cover those
+extents, so their blocks are never resynced. The affected extents
+(0 and 64) are exactly the ones B wrote while it was Primary, which
+fits this. The detach/attach control also fits it.
+
+IMPACT AND OUR WORKAROUND
+
+The disks diverge silently: both sides report UpToDate after a
+"successful" resync. Our production design promotes only from a fresh
+initramfs (attach, then primary), so we are not exposed. Anyone who
+promotes a long-running Secondary in place and later loses that Primary
+without a clean demote could be. We worked around it by always doing
+down/up before a promotion. We repaired the test VMs with
+"drbdadm invalidate-remote" and confirmed with checksums.
+
+We have the full kernel logs from both nodes, the scripts, and the VMs
+(powered off), and can re-run anything you'd like, including a build
+from git.
 
 Best regards,
-Philipp
-
-Am Sat, Oct 24, 2026 at 05:11:08PM +0100 schrieb Dominic Ferard:
-> Hello,
-> 
-> On a two-volume resource, a resync between two Secondaries reaches
-> 100% (out-of-sync 0) and never completes: the target stays
-> Inconsistent/SyncTarget on both volumes indefinitely. It happens when
-> the source was brought up with a plain "drbdadm up" and its second
-> volume's peer bitmap_dagtag is higher than its first volume's. We hit
-> it in production (two standby hosts, both Secondary while the Primary
-> OS is down) and have reproduced it in two VMs. Details, debugfs output
-> and our reading of the source are below. Please correct the analysis
-> if we have it wrong.
-[...]
+Dominic
