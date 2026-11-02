@@ -1,62 +1,87 @@
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=80.177.71.131
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=209.85.216.52
 ARC-Seal: i=1; d=subspace.kernel.org; s=arc20261015; a=rsa-sha256; cv=none;
-	t=1793083134;
-	b=1o5oJfK/4Eem0gIzZa22rRAS3EzlgSkckJogKYoCW4HRLNc7z6BK0dzp51bftzl/pWu1
-	 FuIeJPMxIDq8zPsX4gi9BvazOAynlFtcQ7yZBdUNQ9L4ZNJQtlHemkxNEBREXHJEMifLL
-	 aa3FG6sxWWpzmVIqrITPsYq17QUQwejTSRuz8Kac6TOO34lKZrgbuP+RkMq1pt0YQUpZz
-	 viJiXYE8YxnphCZci0yRi37Z0jCyo4Dxci/vBd444PM5ZElZffki2SmBYkBEm7M2reUOJ
-	 cfQoixlwG3Xdhhm2o1JavRkKW3KtwpSYp3P3O33hz+OtPzWKw3t9b9YLVWQJDTyFGcw==
+	t=1793602880;
+	b=ppqn+CbqOpLRFiqwPz6+NknJgswBmB91C1P/IbQYmsGAPjUjGAa15qlOZlqIoJU7h7Ma
+	 hJ9dB8oFdRMorc6aVilYVkCPNXpV7DXChy2lsMweTxA79rVXJUIsL2fdDi2Q0oynmcm51
+	 1PyPnn4EOgUHgoemglf9c8DOuQovlj2xiw1lU2TSkeMst5/keT8UHaUCjmhHHUKJslDv2
+	 FatVLu0lV+xRlGI0KXMm9BQZzjqrgMd0B+JJw/wgj09m6Y7TXDPZR09VTpJHms2SLCD69
+	 M6woCGLTtRPRiQTYR37oCAgpxwqdRIZHCRZ4v46P1llD0vxZ/nPSkqO1xappkPoZaQA==
 ARC-Message-Signature: i=1; d=subspace.kernel.org; s=arc20261015;
-	a=rsa-sha256; c=relaxed/relaxed; t=1793083134;
-	h=DMARC-Filter:Received:X-Virus-Scanned:X-Spam-Relay-Country:Received:
-	 DKIM-Signature:Received:Date:From:To:Cc:Subject:Message-ID:
-	 MIME-Version:Content-Type:Content-Disposition;
-	bh=ERiBQUjHN6CAtGxymTpjMANU4U9+04xbfEP7Gz+8k9I=;
-	b=zfi5CkAPjxiVfuZcU5gC5PP1wOQJZEyFNAPrTltzKeZhlK4SD0eFkImH2RHdBtz+tgOi
-	 PKRMp7F3GHhfg5ORMkp/eNGrf3I7ugpd7wWfiZLQu22mo1E7r7RmNH8cg1mqT4dvkp8fv
-	 Cefi/LcFp8oIm1Xg27OStoIhSXPA/W+VkTCJM45huC6GzQbQbRyirlcKnoNGMIvNFN83O
-	 Pmewc/+rq2XZjthkMcf47GV/tXDGbtdyfpw4IAqTok3adcNh2B7+6AB7KHlW9Xe/ygBvz
-	 VUWx9z5WXwZNSvSk8tv9iorF9C2IIxM2cSZMa3Phjeo0icDlNmic1kXj89oDt2V63XA==
+	a=rsa-sha256; c=relaxed/relaxed; t=1793602880;
+	h=DMARC-Filter:Received:DKIM-Signature:X-Google-DKIM-Signature:
+	 X-Gm-Message-State:X-Gm-Gg:X-Received:Received:From:To:Cc:Subject:
+	 Date:Message-ID:X-Mailer:MIME-Version:Content-Transfer-Encoding;
+	bh=MrLu4JAhxR8kj09jGcEi9VYiJLe48/kmfVt9PcwNue8=;
+	b=F7GpMWfCYi9SjJDNlbd1swbduiEnAe9u0jJgHKG6Zk/FyRjKsmM7qr+RU9ZjJ6xIttdH
+	 PKQ4If04GU7e8uplotIsfKklvjt8heykHRq3Ur8czXYULOQeEbGTb5WwEGU+sjcozIIW4
+	 cYuR4Q4UTAP+k8pt0OO17xd60rlpJzKI0t+RzFTGNXGPc2HZuDvgkdcuoMxSsb9IycRhd
+	 AqpGAe475VH+hF8hBa5jh9ZcGHWosQ+pMK0GL4ya2xZc3ClmV2wcFI3HMg0rJCGNGQEdA
+	 b+ztw+8sQrBzJcfmw6y+FlH+187OYaE2QaExr9D2oAFAOFKGaapZNgadKjgqC0+bYKg==
 ARC-Authentication-Results: i=1; smtp.subspace.kernel.org; 
-	dmarc=pass header.from=let2.com;
-	spf=pass smtp.mailfrom=let2.com;
-	dkim=pass header.d=let2.com header.i=@let2.com header.a=rsa-sha256 header.s=mail header.b=ZcGXiTCO;
-	arc=none smtp.remote-ip=80.177.71.131
-Received: from static-80-177-71-131.vodafonexdsl.co.uk (static-80-177-71-131.vodafonexdsl.co.uk [80.177.71.131])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	dmarc=pass header.from=gmail.com;
+	spf=pass smtp.mailfrom=gmail.com;
+	dkim=pass header.d=gmail.com header.i=@gmail.com header.a=rsa-sha256 header.s=20260707 header.b=dI9KADv6;
+	arc=none smtp.remote-ip=209.85.216.52
+Received: from mail-pj1-f52.google.com (mail-pj1-f52.google.com [209.85.216.52])
+	(using TLSv1.3 with cipher TLS_AES_128_GCM_SHA256 (128/128 bits)
 	 key-exchange X25519 server-signature ECDSA (prime256v1) server-digest SHA256)
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id A799A606A31A
-	for <drbd-dev@lists.linux.dev>; Tue, 27 Oct 2026 06:38:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org A799A606A31A
-Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=reject dis=none) header.from=let2.com
-Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=let2.com
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 49D36606A32C
+	for <drbd-dev@lists.linux.dev>; Mon,  2 Nov 2026 07:01:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org 49D36606A32C
+Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=gmail.com
+Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=gmail.com
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (1024-bit key, unprotected) header.d=let2.com header.i=@let2.com header.a=rsa-sha256 header.s=mail header.b=ZcGXiTCO
-Received: from localhost (localhost [127.0.0.1])
-	by static-80-177-71-131.vodafonexdsl.co.uk (Postfix) with ESMTP id 139BB23710;
-	Tue, 27 Oct 2026 06:38:35 +0000 (GMT)
-X-Virus-Scanned: amavis at let2.com
-X-Spam-Relay-Country: 
-Received: from static-80-177-71-131.vodafonexdsl.co.uk ([127.0.0.1])
- by localhost (let2.com [127.0.0.1]) (amavis, port 10024) with ESMTP
- id Gl3o421RBkgW; Tue, 27 Oct 2026 06:38:34 +0000 (GMT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=let2.com; s=mail;
-	t=1793083114; bh=ERiBQUjHN6CAtGxymTpjMANU4U9+04xbfEP7Gz+8k9I=;
-	h=Date:From:To:Cc:Subject:From;
-	b=ZcGXiTCOBZID42gii4z7+Gkgp/4h7yUUiIDu9GbpGTb06TL1is2TQNvUY+XBUGDY3
-	 K2oYYWsmNfpZxUgzgGEHYrKONIyfX99GrcnBNpMLCObjK763J75VSCmLp5YmBxuUTe
-	 U5v1VvtSQVlJEEPFvLGPKEfGtVDWp4GqmlhoxE0k=
-Received: by static-80-177-71-131.vodafonexdsl.co.uk (Postfix, from userid 1000)
-	id 8A45A2370F; Tue, 27 Oct 2026 06:38:34 +0000 (GMT)
-Date: Tue, 27 Oct 2026 06:38:34 +0000
-From: Dominic <dominic@let2.com>
+	dkim=pass (2048-bit key, unprotected) header.d=gmail.com header.i=@gmail.com header.a=rsa-sha256 header.s=20260707 header.b=dI9KADv6
+Received: by mail-pj1-f52.google.com with SMTP id 98e67ed59e1d1-3ac7c7b3a90so1101540a91.3
+        for <drbd-dev@lists.linux.dev>; Sun, 01 Nov 2026 23:01:20 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20260707; t=1793602879; x=1794207679; darn=lists.linux.dev;
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:from:to:cc:subject:date:message-id:reply-to:content-type;
+        bh=MrLu4JAhxR8kj09jGcEi9VYiJLe48/kmfVt9PcwNue8=;
+        b=dI9KADv6bmuj7ZkkCLNYisHQJhG2TB54SG+WbCHZDVIrs8zFCQRZwcKDhorZQ04skg
+         B3pWOVJQoVCCrJtVP5IK/cZuELXpJ8tVtWbphR0TV5njdTXW4YO6FnoZHkY6iLZvLOG7
+         +qqsUrY1gowqqi7ri0umgB5lcdvgCzGhvOYLPkklAYOkuFGTQFuPbxeRnSWL/squdkPp
+         dZagYYEUlRwALEkGdhj2HGiqKvcR2kaG+FVHFhXKVZ02ZW/1u1jJcGttnc5y8BIwgtVx
+         /Ripjn9WwKd650RXvUXR9s3k3oOxgAHxvVN03LZU9G86i051Mgh0BQ2vpDX1hlexlsFg
+         iQJA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20260707; t=1793602879; x=1794207679;
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:x-gm-gg:x-gm-message-state:from:to:cc:subject:date
+         :message-id:reply-to:content-type;
+        bh=MrLu4JAhxR8kj09jGcEi9VYiJLe48/kmfVt9PcwNue8=;
+        b=VoH4bu/3pqd8vzR1ACztYk1Qy3CjoLcxeDR9+MU1kTq3BH2RRJSDIC7+dUikUI37Wo
+         XOWEeDB3ruFi5uU4Eg9T9rKV8u8ep4DLfOz3NOTWX1X0BhxIsC0rptO3G99tZz82rDlh
+         +q7s3zcsqaeoPP0pdMLdcQBS/W+QYgCd979ZnqP7gJ1hNf/oBbCHCJa93mBSaFiiWN+1
+         xjiJsR54AtWQHeihDozTRwXhYqNLNh7Vfh8wqFmQy1dmJEw2JDmbllA3FEviigQ5g/4C
+         aL7tK0tMMzghCTd5bRcEO+fLP86J4zCY8WOuwe0PdPaVdSD+ym7YuSSY7aqIwF9Mc5ST
+         nZOw==
+X-Gm-Message-State: APuU4Z+wpw6ncttIBzey+JXrvO2Cu4rQL5vr4LO/FRFifMx65VIBgQ2D
+	aOSBSUBMIirJ7igJkZ9wHf33Ig+fS2/nG9qo++q9i5kVATWVjIY/D4zpd+SSiQ==
+X-Gm-Gg: AYBFou3Kgk6EMSkSoOx5h5tzvwpsVSXMjOK9wElMUAntQ5hOk8TLcc/447v8Ho2UBRa
+	LKhAx/eqSEegvwbItnzd1qV1G1gGjByL3sa3QemP2KgNWabQ9HiwRLIjKsX1BGXmZo5wu5WPeAm
+	X8lyyHYXm4O+aabsVt/jxzF810dpOiTMYgsftnW8MxbbQ+sjRuBXM/8Y8B/4eZ967xRRixe3cAh
+	mZegCbVtAZlKGA2jYfjoctEhTz+796qsQ17rgKQWVnbAwaf/Y3dn3GwAPrsSSM31xRd2GpxsYxz
+	saaAHhHOCTaLrCTvNNa+Gy+P6Zm4mrYY8K9cxvd+rrx77fkln21vN6EaGadUNVTtPOYhi4HsgoZ
+	fojHw3km1XLezT9R15bA0BPr6bwVkconhwB//aC6dorGqfkAbKJMFyt/TwPYm34qJk9gFrWSk6E
+	0ZpM1/Z9GphUTLV/dt/F1jDifVHEBa++AAp25VzM+El33x6K7CJri+kSJ6lW1MoRWMiOKvt+XDX
+	sSDX3B/jUuwe7f5H9Y7tn+fP1WO1BjsMi7/bSNc9/HshKsF8O40NK60HR/iHzgbET9NcoeAeceL
+	MEd9cF42nSiXrOtKM3bJg7OLA81xlT1mtReU5++OLouAYSUxQly7LuA=
+X-Received: by 2002:a17:90b:4ac8:b0:3ac:7116:434a with SMTP id 98e67ed59e1d1-3ae897ccac3mr6741605a91.15.1793602879205;
+        Sun, 01 Nov 2026 23:01:19 -0800 (PST)
+Received: from localhost.localdomain ([219.251.253.167])
+        by smtp.gmail.com with ESMTPSA id 98e67ed59e1d1-3ae845fb9f6sm12690009a91.17.2026.11.01.23.01.18
+        (version=TLS1_3 cipher=TLS_CHACHA20_POLY1305_SHA256 bits=256/256);
+        Sun, 01 Nov 2026 23:01:18 -0800 (PST)
+From: Kitae Yoo <ryugitae777@gmail.com>
 To: drbd-dev@lists.linux.dev
-Cc: philipp.reisner@linbit.com
-Subject: 9.3.4: resync after a crashed Primary misses blocks (silent
- divergence) if that node was promoted in place after being Secondary under
- another Primary
-Message-ID: <auBG6pq0aKXwupY9@let2.com>
+Cc: Kitae Yoo <ryugitae777@gmail.com>
+Subject: [PATCH] drbd: fix resync stall when P_RS_CANCEL_AHEAD overtakes the state change
+Date: Mon,  2 Nov 2026 16:01:13 +0900
+Message-ID: <20261102070113.52210-1-ryugitae777@gmail.com>
+X-Mailer: git-send-email 2.50.1
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
 List-Post: <mailto:drbd-dev@lists.linux.dev>
@@ -66,109 +91,128 @@ List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 List-Owner: <mailto:drbd-dev+owner@lists.linux.dev>
 Precedence: list
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 
-Hello,
+When the sync source pulls ahead (on-congestion pull-ahead) during a
+resync, it answers pending resync requests with P_RS_CANCEL_AHEAD on the
+control socket and sends its Ahead state change on the data socket. The
+two sockets are not ordered, so the cancel can arrive first.
+got_NegRSDReply() then sets SYNC_TARGET_TO_BEHIND while we are still
+L_SYNC_TARGET, and make_resync_request() returns early without re-arming
+resync_timer. Nothing else re-arms it.
 
-Last week I reported the two-volume flush stall (thank you for the quick
-confirmation). While testing our failover design, we found another
-problem on 9.3.4. This one is a silent divergence, so I wanted you to
-know about it.
+This ends in a permanent stall in two ways:
 
-SUMMARY
+1) The Ahead state arrives and we become Behind. With resync_timer dead,
+   w_resync_timer() never runs the branch that clears resync_active.
+   When the peer returns to SyncSource, the "resync-after-behind" start
+   is postponed forever by do_start_resync() because resync_active is
+   still set ("postponing start_resync" repeats).
 
-Node A has been Secondary while node B was Primary. A is then promoted
-in place, with no down/attach in between. A writes after a disconnect
-and goes down without demoting (as a root-on-DRBD Primary does at
-shutdown). When A comes back, it is SyncSource and the resync completes
-normally. But some blocks that A wrote after the disconnect are not
-resynced, so the two disks then differ while both report UpToDate.
+2) A previously postponed resync start fires while the peer is Ahead
+   again, so we become SyncTarget and the peer cancels our requests. The
+   flag is set while we are SyncTarget. When the peer returns to
+   SyncSource we never left SyncTarget, so neither the
+   non-sync -> sync transition that clears the flag nor the
+   "resync-after-behind" path (old peer state L_BEHIND) is taken.
 
-If A is taken down and up (detach/attach) before the in-place
-promotion, the resync is correct.
+In both cases the connection stays up, out-of-sync stays constant and no
+resync traffic flows. Only a disconnect/connect recovers.
 
-ENVIRONMENT
+Fix both:
+- Keep re-arming resync_timer on the early return, so that once we are
+  Behind, w_resync_timer() clears resync_active as intended.
+- In receive_state(), when the peer reports SyncSource while we are
+  SyncTarget with SYNC_TARGET_TO_BEHIND set, clear the flag and kick
+  resync_timer.
 
-- drbd-dkms 9.3.4-1ppa1~resolute1 (GIT-hash e59b287b199f), drbd-utils
-  9.35.0-1ppa1~resolute1 (LINBIT PPA)
-- Ubuntu 26.04, kernel 7.0.0-38-generic, two VirtualBox VMs
-- 2 nodes, protocol C, one resource with 2 volumes, external metadata,
-  auto-promote no, no fencing. al-extents 6433. Same r0.res as in my
-  24 Oct report.
-- The Ubuntu drbd-utils units drbd-graceful-disconnect.service (active)
-  and drbd-graceful-down.service (masked on A, to mimic a root-on-DRBD
-  Primary that can't demote) are in use.
-- Every "up" is attach first (adjust --skip-net, then adjust), to avoid
-  the bug from my last report.
-- Not tried on git master.
+This does not remove the reordering itself, which would need a protocol
+change; it makes the target recover from it.
 
-REPRODUCTION (A = pm1, node-id 0; B = pm2, node-id 1; ext4 on volume 0)
+Signed-off-by: Kitae Yoo <ryugitae777@gmail.com>
+---
 
-1. Connected, both UpToDate, both Secondary.
-2. On B: drbdadm primary r0; mount /dev/drbd0; write a file; umount;
-   drbdadm secondary r0. (Still connected throughout; A stays up.)
-3. On A, with no down/up: drbdadm primary r0; mount /dev/drbd0; write
-   10 MiB to a file; sync.
-4. On A: systemctl reboot. drbd-graceful-disconnect disconnects first
-   (B goes Outdated). The ext4 unmount then writes the superblock etc.
-   after the disconnect. A never demotes (graceful-down is masked).
-5. A boots; drbdadm adjust --skip-net r0; drbdadm adjust r0.
-   A reports "Marked additional 0 KB as out-of-sync based on AL", is
-   SyncSource and resyncs; both volumes end UpToDate.
-6. Compare the backing devices: volume 0 differs.
+Notes:
+    Environment:
+      DRBD 9.3.4 (Ubuntu PPA 9.3.4-1ppa1~noble1), kernel 6.8.0-124-generic,
+      2 nodes, protocol A, on-congestion pull-ahead, congestion-fill 8M,
+      sndbuf-size 10M, max-buffers 20000, c-max-rate 200M.
+      Link: WireGuard tunnel (MTU 1280) between two sites.
+      Resources managed by LINSTOR.
+    
+    Reproduction:
+      On the primary, repeated bursts of 64k random writes (fio, iodepth 16,
+      20s on / 5s off) on a 5G volume, so the source repeatedly pulls ahead
+      while a resync from the previous burst is still running.
+    
+      Unpatched (both nodes): 2 stalls in one run; each needed a
+      disconnect/connect to recover. Earlier runs showed the same, with
+      "postponing start_resync" repeating on the target.
+    
+      Patched module on the sync target only (source unpatched), two runs of
+      40 bursts each:
+        - source went Ahead 15 times, 13 of them during a resync
+        - "peer pulled ahead during resync" logged 5 times on the target:
+          2 with the case 1 order (pulled ahead -> SyncTarget->Behind ~1s
+          later -> Behind->SyncTarget the next second), 3 with the case 2
+          order, each followed within 1s by "peer back from ahead, resuming
+          resync requests"
+        - 0 stalls; resync finished each time shortly after the last burst
+        - no warnings or oopses in the kernel log
+    
+      Not covered: the patched node acting as sync source, and >2 nodes.
+    
+    Side note, not addressed by this patch: while we are SyncTarget, a stale
+    queued start_resync keeps logging "postponing start_resync" about every
+    100ms (~1900 lines in 3 minutes in one run). An alternative/additional
+    approach would be to drop such a stale start once we are already
+    SyncTarget, or to not start the resync while the peer is still Ahead.
 
-Reproduced 3 times out of 3 (two scripted runs and one first sighting).
+ drbd/drbd_receiver.c | 12 ++++++++++++
+ drbd/drbd_sender.c   |  6 +++++-
+ 2 files changed, 17 insertions(+), 1 deletion(-)
 
-RESULTS
+diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
+index 51a61fbc3..357c3aafa 100644
+--- a/drbd/drbd_receiver.c
++++ b/drbd/drbd_receiver.c
+@@ -10569,6 +10569,18 @@ static int receive_state(struct drbd_connection *connection, struct packet_info
+ 		return 0;
+ 	}
+ 
++	/* The peer pulled ahead and came back while we stayed SyncTarget
++	 * (its P_RS_CANCEL_AHEAD outran the Ahead state change), so the
++	 * SyncTarget -> Behind -> SyncTarget path that would clear the flag
++	 * is never taken.  Clear it here and resume issuing requests.
++	 */
++	if (peer_state.conn == L_SYNC_SOURCE &&
++	    peer_device->repl_state[NOW] == L_SYNC_TARGET &&
++	    test_and_clear_bit(SYNC_TARGET_TO_BEHIND, peer_device->flags)) {
++		drbd_info(peer_device, "peer back from ahead, resuming resync requests\n");
++		mod_timer(&peer_device->resync_timer, jiffies + RS_MAKE_REQS_INTV);
++	}
++
+ 	/* Start resync after AHEAD/BEHIND */
+ 	if (connection->agreed_pro_version >= 110 &&
+ 	    peer_state.conn == L_SYNC_SOURCE && old_peer_state.conn == L_BEHIND) {
+diff --git a/drbd/drbd_sender.c b/drbd/drbd_sender.c
+index 5c27980d8..a6d1be578 100644
+--- a/drbd/drbd_sender.c
++++ b/drbd/drbd_sender.c
+@@ -1390,8 +1390,12 @@ static int make_resync_request(struct drbd_peer_device *peer_device, int cancel)
+ 	if (test_bit(SYNC_TARGET_TO_BEHIND, peer_device->flags)) {
+ 		/* If a P_RS_CANCEL_AHEAD on control socket overtook the
+ 		 * already queued data and state change to Ahead/Behind,
+-		 * don't add more resync requests, just wait it out. */
++		 * don't add more resync requests, just wait it out.
++		 * Keep polling: once we are Behind, w_resync_timer() clears
++		 * resync_active; nothing else re-arms this timer.
++		 */
+ 		drbd_info_ratelimit(peer_device, "peer pulled ahead during resync\n");
++		mod_timer(&peer_device->resync_timer, jiffies + RS_MAKE_REQS_INTV);
+ 		return 0;
+ 	}
+ 	if (!get_ldev(device)) {
+-- 
+2.50.1 (Apple Git-155)
 
-Failing run (with step 2), volume 0:
-
-  pm1 kernel: drbd r0/0 drbd0 pm2: self B83C73CDF184048C:74B0ADF14B06F564:DA5CAA724336D98E:A923FA7E7C56E246 bits:3072 flags:2022
-  pm1 kernel: drbd r0/0 drbd0 pm2: peer 74B0ADF14B06F564:0000000000000000:A923FA7E7C56E246:D8B36CA284BD34EA bits:0 flags:120
-  pm1 kernel: drbd r0/0 drbd0 pm2: uuid_compare()=source-use-bitmap by rule=bitmap-self
-  pm1 kernel: drbd r0/0 drbd0 pm2: Began resync as SyncSource (will sync 12288 KB [3072 bits set]).
-  after resync: md5 of the volume 0 backing device differs between the
-  nodes; the differing 4 KiB blocks are block 0 (4 MiB extent 0, the ext4
-  superblock) and block 65536 (offset 256 MiB, extent 64). Volume 1
-  matches.
-
-Control without step 2 (A was never Secondary under a Primary B):
-same sequence otherwise, "will sync 24576 KB [6144 bits set]", and the
-checksums match afterwards.
-
-Control with step 2 plus "drbdadm down r0; adjust --skip-net; adjust"
-on A before step 3: 6144 bits, checksums match.
-
-So the bitmap A brings back covers 3072 bits instead of 6144, and the
-missing part includes blocks A wrote after the disconnect.
-
-OUR GUESS AT THE MECHANISM (not verified in the code)
-
-While B was Primary, we see "Disabling local AL-updates (optimization)"
-and later "Enabling local AL-updates" in the logs. We suspect that
-extents made active in A's in-memory activity log while it was
-Secondary (from B's replicated writes) stay "hot" after A is promoted.
-A's own later writes to those extents then cause no on-disk AL
-transaction. A never demotes, so its in-memory bitmap is never written
-out. After the crash, applying the on-disk AL doesn't cover those
-extents, so their blocks are never resynced. The affected extents
-(0 and 64) are exactly the ones B wrote while it was Primary, which
-fits this. The detach/attach control also fits it.
-
-IMPACT AND OUR WORKAROUND
-
-The disks diverge silently: both sides report UpToDate after a
-"successful" resync. Our production design promotes only from a fresh
-initramfs (attach, then primary), so we are not exposed. Anyone who
-promotes a long-running Secondary in place and later loses that Primary
-without a clean demote could be. We worked around it by always doing
-down/up before a promotion. We repaired the test VMs with
-"drbdadm invalidate-remote" and confirmed with checksums.
-
-We have the full kernel logs from both nodes, the scripts, and the VMs
-(powered off), and can re-run anything you'd like, including a build
-from git.
-
-Best regards,
-Dominic
