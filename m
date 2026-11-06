@@ -1,48 +1,98 @@
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=210.79.60.35
-ARC-Seal: i=1; d=subspace.kernel.org; s=arc20261015; a=rsa-sha256; cv=none;
-	t=1793847308;
-	b=izjOL5BKoj3afAb18MSqfTuEYEMMqypxexXlLPKeY9xl3stkyuKKq3sgDQgJUDlNtGFY
-	 wODIuhRYmdyHLT5DDOCxJhxLhnNDbwfeWApvhUlxeAVMzXX8gtY3DLdgkqXVWm0V9KPpR
-	 4I8XNrhN3O4scMdxNNtRHbsGB2ej5QjUTlrKDklD+k4BB6Z85vGrFX9LQHv0jjydswGsC
-	 0AzPnFUO/RemQa42LpPisCWQjK2bOLKCAatwUI08XB5RdtzxyPy+338NVlPmRU/PrV1nC
-	 00LExA03nLeodnF4LXuqG4Szr2ORGrAzSEIl+BpcUxE5zsZHXwvWwKe72SVu5YE47JQ==
-ARC-Message-Signature: i=1; d=subspace.kernel.org; s=arc20261015;
-	a=rsa-sha256; c=relaxed/relaxed; t=1793847308;
-	h=DMARC-Filter:Received:From:To:Cc:Subject:Date:Message-ID:X-Mailer:
-	 MIME-Version:Content-Transfer-Encoding:X-HM-Tid:X-HM-MType:
-	 X-HM-Spam-Status:DKIM-Signature;
-	bh=930Y6vfGOqM8F0xki+1nGoN6DNJqS/6qz71r9HbW45M=;
-	b=1cQSjBhqjUnGUDMHhwuvM/zs9iy3ZD++Sryf2J2yYAFZC+GhPL28uYxxwtshUPGWC3qx
-	 pdvCcLWuszl6kluOf/071uxdtoah3pxj7deogpVK4Q90hPN5Bj9SbcIjLfK+OYmlClXN+
-	 mrnyt67np0BemK2MxFOo9Dxkw8PPVuqockiPkoqjIakugUlQtLT8L7HY9ssZQRcpxQ+ji
-	 9DLfbD63d79QdcIJEiFYFxvh+LgfxGS8e4cZjf/ykuE9zgesNew4VHrElOOi41KPFFnCF
-	 fB+EvbjTNcY41U6elifIHb4PSLf//Zm5tL86iUi4eEk+eWCLu29Wg3BNMNKgVLN9F1g==
-ARC-Authentication-Results: i=1; smtp.subspace.kernel.org; 
-	dmarc=pass header.from=easystack.cn;
-	spf=pass smtp.mailfrom=easystack.cn;
-	dkim=pass header.d=easystack.cn header.i=@easystack.cn header.a=rsa-sha256 header.s=default header.b=QbT6FP4D;
-	arc=none smtp.remote-ip=210.79.60.35
-Received: from mail-m6035.netease.com (mail-m6035.netease.com [210.79.60.35])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+Authentication-Results: smtp.subspace.kernel.org; arc=pass header.oldest-pass=0 smtp.remote-ip=209.85.208.49
+ARC-Seal: i=2; d=subspace.kernel.org; s=arc20261015; a=rsa-sha256; cv=pass;
+	t=1793973055;
+	b=N648dB9wg+2/75nC1I32J8TnxoJlJXzp4D/WkddXu9ONt5mYuAea/RPJU8BmUZrZ2Kez
+	 ic2vyhc0pcRcyx86tJegJKXyIwhuhtPwyATLSbFr/kmD/KNcSNeqGFfGuSZkV/FiH2zbU
+	 hUrejo6X94WbhnusIgSoU9ulwXaRtewl3K1HUXvRWR31m5LFDsdAPpmXvKKL0rA/JElL5
+	 XlGOvKcSM0NEQX4eLMpHfebRAw8Y3yLHX96r7PTDdYcBu0/QyCaL6W9mG/T1kgVYpTSLS
+	 msLp51ZxqSKPJVLM/GolJ0tNISn4UkCisCdyWgMbGS/nJRr2EoAfLW+LjVuJdORrOLw==
+ARC-Message-Signature: i=2; d=subspace.kernel.org; s=arc20261015;
+	a=rsa-sha256; c=relaxed/relaxed; t=1793973055;
+	h=DMARC-Filter:Received:DKIM-Signature:X-Google-DKIM-Signature:
+	 X-Gm-Message-State:X-Gm-Gg:X-Received:MIME-Version:References:
+	 In-Reply-To:From:Date:X-Gm-Features:Message-ID:Subject:To:Cc:
+	 Content-Type;
+	bh=oQ2Oy2vE4Y+KSIGzjxEVBp2pts3FTmVlEXlZ7nc293g=;
+	b=aKzJgpZsAWrDpoFjESj1CAdkO6Xr0bZl74swheQds3hXJwopE+hqVVRyDrCW3+jXR3V9
+	 TZ1rfqOTVpvtSuh6R30TX/mxJCSxrpufmpBQNay4IYUA8FXy8IeXDNQJy1hawqioMrEuo
+	 8QRMpMY1+X00JMrQSkCpuSUzGVnmYDxB774QJeVbGndq/BIbQq7wA8zBhzOHX/KedG3HR
+	 7DMZD22R05X3rBgkeg+CLPQrmvuo/plHNNZJ2QAsHMZ2RY24ghH+E2uF3kHiMa/LaZpTK
+	 ELRuF+V595V6ylNDBE3JjCgL53hzWINQXEp4/NHtKkEVVbNnYeluNHpH85Mr2N0JN4w==
+ARC-Authentication-Results: i=2; smtp.subspace.kernel.org; 
+	dmarc=pass header.from=linbit.com;
+	spf=pass smtp.mailfrom=linbit.com;
+	dkim=pass header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=qrKYcMO5;
+	arc=pass header.oldest-pass=0 smtp.remote-ip=209.85.208.49
+Received: from mail-ed1-f49.google.com (mail-ed1-f49.google.com [209.85.208.49])
+	(using TLSv1.3 with cipher TLS_AES_128_GCM_SHA256 (128/128 bits)
 	 key-exchange X25519 server-signature ECDSA (prime256v1) server-digest SHA256)
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 096D2606A328
-	for <drbd-dev@lists.linux.dev>; Thu,  5 Nov 2026 02:55:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org 096D2606A328
-Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=quarantine dis=none) header.from=easystack.cn
-Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=easystack.cn
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 9899D606A329
+	for <drbd-dev@lists.linux.dev>; Fri,  6 Nov 2026 13:50:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org 9899D606A329
+Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com
+Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=linbit.com
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (1024-bit key, unprotected) header.d=easystack.cn header.i=@easystack.cn header.a=rsa-sha256 header.s=default header.b=QbT6FP4D
-Received: from hzb-HP-Laptop-14s-cr2xxx.. (unknown [218.94.118.90])
-	by smtp.qiye.163.com (Hmail) with ESMTP id 255e6971b;
-	Thu, 5 Nov 2026 10:54:55 +0800 (GMT+08:00)
-From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
-To: drbd-dev@lists.linux.dev
-Cc: "zhengbing . huang" <zhengbing.huang@easystack.cn>
-Subject: [PATCH] drbd: rdma/rdma2: fix control timer use-after-free on teardown
-Date: Thu,  5 Nov 2026 10:54:54 +0800
-Message-ID: <20261105025454.2444754-1-zhengbing.huang@easystack.cn>
-X-Mailer: git-send-email 2.43.0
+	dkim=pass (2048-bit key, unprotected) header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=qrKYcMO5
+Received: by mail-ed1-f49.google.com with SMTP id 4fb4d7f45d1cf-6b5669a5100so835410a12.1
+        for <drbd-dev@lists.linux.dev>; Fri, 06 Nov 2026 05:50:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1793973053; cv=none;
+        d=google.com; s=arc-20260327;
+        b=rfoVLr4cnb/6QYAuzAemlxjOYTwb6tDe7zacMV5qhj9GM2hQQFxuTLJf0H0MHBrXQk
+         L8YL3iNVLAhc5blztWe8P01Nwr8AHU8af4BPpxZxJrKx2O6N7GfSd1wNHwfFkXCA4YX7
+         FQz/550cdkSeuDlE/y8GHLsCTDHIxqZSdfdNaRSzXSpxgPtvfl8GUfM6gg9inZDvjMCW
+         Ydn3C60kTLe3KyxUa+rWBmCjpN0CLGzYeK/zM1Zkc3W7XghMtOd9GsEXdiC6UlAojkdb
+         H4lOijq7h5mlyslCAA5KuYiqjM3Hu9207LcYS5jVJx18kKAHo6xkWXkYaGN/70FLbG/m
+         r9/w==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=oQ2Oy2vE4Y+KSIGzjxEVBp2pts3FTmVlEXlZ7nc293g=;
+        fh=0ji70OvZOw2q6ZEKVsL0sAJAuUsESQYqDpYDFnyl6zA=;
+        b=jk703yt9q7Z1vucfda4qYbjL6769f+5cCViVWF9FrwLCE0Srv6BdI9TICwbnpKRoT/
+         8XlP/TdHcK6BagQes7i2NJXaXRUFgiLwf7cW71UUsWv+mcVK5U12eIBjXobIO8hZJg+O
+         pXn3NTkk1Be3Xdt8di6kxulpAGyHprjSQWAAgaCXlRAQz9Pk8lT+dr0yxl6Frr+BLTZt
+         P3XSIEBORvN7BRsf8w74A0gT3fKdMjSN2Xtyc9gxlFInsJxZv0/YHhz1wvpgs+b6SysE
+         DtzYTVXsXEFjdJktQ/CPDLVCDY/WJ08VIOTGg/ZYdysnbK3EGv3KXNQMCYAC3ZbDj7Kv
+         zBaQ==;
+        darn=lists.linux.dev
+ARC-Authentication-Results: i=1; mx.google.com; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linbit.com; s=google; t=1793973053; x=1794577853; darn=lists.linux.dev;
+        h=content-type:cc:to:subject:message-id:date:from:in-reply-to
+         :references:mime-version:from:to:cc:subject:date:message-id:reply-to
+         :content-type;
+        bh=oQ2Oy2vE4Y+KSIGzjxEVBp2pts3FTmVlEXlZ7nc293g=;
+        b=qrKYcMO5dKwWRKnJ76obZv4OXw8wMn08s2mOzh/MITrdKTV1CZjrR7ugvF+IpvcXNJ
+         0aLRp25aeIbA0dUCOjabXDV9/jCVQP1qjWjzi7CyqcQab9rR2BI6vt207ttugjZdoYVz
+         Ldwimmpyc8yKSE21bRwfRGpM4C5qN/VhDERkluaDZ2WnJIK5H/+vo42CZ2RR5bP9kWZN
+         gTAnGZed5OfnIYdGVhN+eW84WrIJDQzsKr+/Srgp1Y65bbPPx+gVhsLWiXk2gU79EC3J
+         l4NDghEfPdM7WmmYuwBge3pYhh1z20pF4hOAtuWrbR+RVwO9o+d6QrxiwDeFraI6gSvn
+         GwtQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20260707; t=1793973053; x=1794577853;
+        h=content-type:cc:to:subject:message-id:date:from:in-reply-to
+         :references:mime-version:x-gm-gg:x-gm-message-state:from:to:cc
+         :subject:date:message-id:reply-to:content-type;
+        bh=oQ2Oy2vE4Y+KSIGzjxEVBp2pts3FTmVlEXlZ7nc293g=;
+        b=M4fJCZFptUYBGRm2nR6geMExbU3+zr/xfWfyxA6hMDdlA+4isBS5CJPOGYkIxlhN28
+         p+7mYxdwLlOMA1nf458KxpRs9rHuvHHf8hbaM/dCYoe3GhTT1fElCh99n4YVgY427hmc
+         Dhq4l3/J7+xASQ+9OBmc+x3QNZ+GFZIRtVRvfssnuMZejDZ5d24iCqLwh2jneUXIT3XZ
+         lmaAIfDZ8AZ+WH+IIUqdfoDCA54I4VnGEpq+Yff0A3hQBDMNbLvOX4fpRAh7brYsibJr
+         TiN8ytp1iL54vi6LoCQ2y9DEBuQJGE9bVq7X33aUDI8zm3GaF6VdiX6iweC1Et5uiwOd
+         6j7Q==
+X-Gm-Message-State: APuU4Z/OeRzgloCRzq5hSIcmr7w/qB7LDuFWIUFhcKdIYaXIT6yVYZaU
+	3WpjqqRnzutcLWjbPN4ma0JXRfIYd9xTOYPz4PRgChfuVfi7KAcTBMNF12v+xTGzCexvbqCsIcr
+	wOir4tuzURVEfQYtRCsa25baHzHWBuHVZ3WThzpSwkbfTu5FugegrL54=
+X-Gm-Gg: AYBFou3056z9/8LmgKtDwUTeg4o7GwIb8k0ezEkaqzczfNaKFQUafYnHZC2Qvio2z6z
+	dEbXkThjq2X4/VGS4S2qVWFtgygp3nktga+KVMX7fH7UAle/xvMpOuk94IsWHqP8IhL1glkEGYT
+	oh9R4v2eF/UM4X/CdQT7ZTJK6nijCTE8wCDrrVJGtq0qk6xU04gR9TgCXXF6zE9g5f7zHkAaVpz
+	7O4gCTpQ1R+z6nFMQ8dRoa8rc1NliCJeaTtx2+vv6bpA622u+g+G6MM3vwIMsbkyRYlclDR9Hcs
+	3rsEa7UyFlvBWE0xHhH9nA9SXWHfSy2uDlrU3cz/pgb2qI0iO1ep5din1oyOE6h1A2wirwur/uF
+	6XQkWX6SgKlcP8TNyUvhUpqXHnCpaoPFL1OuwIA==
+X-Received: by 2002:a05:6402:138c:b0:6b1:ba86:5f48 with SMTP id
+ 4fb4d7f45d1cf-6b597a33afamr1184843a12.36.1793973052949; Fri, 06 Nov 2026
+ 05:50:52 -0800 (PST)
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
 List-Post: <mailto:drbd-dev@lists.linux.dev>
@@ -52,181 +102,15 @@ List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 List-Owner: <mailto:drbd-dev+owner@lists.linux.dev>
 Precedence: list
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-HM-Tid: 0aa1a9a17d160227kunm5f6078c294280
-X-HM-MType: 1
-X-HM-Spam-Status: e1kfGhgUHx5ZQUpXWQgPGg8OCBgUHx5ZQUlOS1dZFg8aDwILHllBWSg2Ly
-	tZV1koWUFJQjdXWRgWCB1ZQUpXWS1ZQUlXWQ8JGhUIEh9ZQVkaHUhPVkhPQxpPQh0aGR0dGlYVFA
-	kWGhdVGRETFhoSFyQUDg9ZV1kYEgtZQVlJSkNVQk9VSkpDVUJLWVdZFhoPEhUdFFlBWU9LSFVKS0
-	lPT09IVUpLS1VKQktLWQY+
-DKIM-Signature: a=rsa-sha256;
-	b=QbT6FP4DrUSioUgViONc9QVMepWe7NzLmO9Ln4WgjOXeObusF4ITunRmXUeRNgg9HB8jnlnY6z2YW/QJx18dPJ2sUvZjKvfhYdKl8B2nEC1XPuiIejfV16Xd49yPzAGEVcH3DxDU1F64YfBbAKM4/c7uZ71X4pjUENID1szJGeI=; s=default; c=relaxed/relaxed; d=easystack.cn; v=1;
-	bh=930Y6vfGOqM8F0xki+1nGoN6DNJqS/6qz71r9HbW45M=;
-	h=date:mime-version:subject:message-id:from;
+References: <20261105025454.2444754-1-zhengbing.huang@easystack.cn>
+In-Reply-To: <20261105025454.2444754-1-zhengbing.huang@easystack.cn>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+Date: Fri, 6 Nov 2026 14:50:41 +0100
+X-Gm-Features: AclHuK-ztDv57lYFndZc2KmzPb_LXhzAYhED9DBC-7fVQ-xdYDGfAe0pVARTfRY
+Message-ID: <CADGDV=Wa+ANi=zdSzv_Pf9GbBEyaVsET=BDrF2RJvpRrvQJpJQ@mail.gmail.com>
+Subject: Re: [PATCH] drbd: rdma/rdma2: fix control timer use-after-free on teardown
+To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
+Cc: drbd-dev@lists.linux.dev
+Content-Type: text/plain; charset="UTF-8"
 
-Both rdma transports use a per-connection control timer to detect a
-stalled control stream. dtr_set_rcvtimeo() and the rx completion path arm
-it with mod_timer(). When it expires, dtr_control_timer_fn() calls
-drbd_control_event(transport, TIMEOUT), which either queues
-connection->send_ping_work or initiates a connection state change.
-
-dtr_free() only removed that timer with timer_delete_sync(). That
-serializes against the timer callback, but not against other contexts
-arming the timer: drbd_send_ping_wf() runs on the system workqueue and
-calls set_rcvtimeo() -> dtr_set_rcvtimeo() -> mod_timer() with no
-synchronization against the teardown. If it runs after dtr_free()
-returned, it re-arms the timer on a transport whose connection is about
-to be (or already has been) freed.
-
-Concrete example - "drbdadm down" on a node whose peer just went away:
-
-  CPU 0 (timer softirq)                CPU 1 (admin, drbdadm down)
-
-  control_timer expires
-  dtr_control_timer_fn()
-    drbd_control_event(TIMEOUT)
-      schedule_work(send_ping_work)
-                                       conn_disconnect()
-                                       drbd_transport_shutdown()
-                                         dtr_free()
-                                           timer_delete_sync()
-                                             -> timer deleted
-                                             -> connection freed
-                                             -> drbd_resource freed
-  send_ping_work finally runs:
-    set_rcvtimeo(PING_TIMEOUT)
-      dtr_set_rcvtimeo()
-        mod_timer(control_timer, ...)
-          -> timer armed again on freed memory
-
-  ... one ping timeout later ...
-
-  dtr_control_timer_fn()
-    drbd_control_event(TIMEOUT)
-      change_cstate_tag()
-        change_cluster_wide_state()
-          ___begin_state_change(resource)
-            -> oops on the freed drbd_resource
-
-The window is easiest to hit right after a connection loss, because the
-control timer tends to expire and queue the ping work just when the
-administrator tears the resource down. The resulting crash looks like:
-
-  pc : state_change_lock+0x54/0x130 [drbd]
-  lr : change_cluster_wide_state+0x54/0x1120 [drbd]
-  Call trace:
-   state_change_lock
-   change_cluster_wide_state
-   change_cstate_tag
-   drbd_control_event
-   dtr_control_timer_fn [drbd_transport_rdma]
-   call_timer_fn
-
-Shut the timer down with timer_shutdown_sync() instead of just deleting
-it: once it returns, mod_timer()/add_timer() refuse to arm the timer
-again, no matter which context races with the teardown. Because the
-transport object (and with it the timer) is reused for reconnects,
-dtr_prepare_connect() re-initializes the timer with timer_setup().
-
-Both arming sites also check rdma_transport->active now, so nothing arms
-the timer once teardown started. This matters for kernels where the
-compat layer maps timer_shutdown_sync() back to del_timer_sync(): the
-late arming attempt is then a no-op instead of re-arming the timer.
-
-Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
----
- drbd/drbd_transport_rdma.c  | 12 +++++++++---
- drbd/drbd_transport_rdma2.c | 12 +++++++++---
- 2 files changed, 18 insertions(+), 6 deletions(-)
-
-diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-index 7f72377d0..2488fab82 100644
---- a/drbd/drbd_transport_rdma.c
-+++ b/drbd/drbd_transport_rdma.c
-@@ -492,7 +492,7 @@ static void dtr_free(struct drbd_transport *transport, enum drbd_tr_free_op free
- 		}
- 	}
- 
--	timer_delete_sync(&rdma_transport->control_timer);
-+	timer_shutdown_sync(&rdma_transport->control_timer);
- 
- 	if (free_op == DESTROY_TRANSPORT) {
- 		list_for_each_entry(drbd_path, &transport->paths, list) {
-@@ -1838,7 +1838,7 @@ static void dtr_rx_cqe_done(struct ib_cq *cq, struct ib_wc *wc)
- 		smp_wmb(); /* smp_rmb() is in dtr_new_rx_descs() */
- 		atomic_dec(&flow->rx_descs_known_to_peer);
- 
--		if (stream == ST_CONTROL)
-+		if (stream == ST_CONTROL && rdma_transport->active)
- 			mod_timer(&rdma_transport->control_timer,
- 				  jiffies + rdma_stream->recv_timeout);
- 
-@@ -2989,6 +2989,9 @@ static int dtr_prepare_connect(struct drbd_transport *transport)
- 	atomic_set(&rdma_transport->first_path_connect_err, 1);
- 	init_completion(&rdma_transport->connected);
- 
-+	/* dtr_free() shut the control timer down; make it armable again. */
-+	timer_setup(&rdma_transport->control_timer, dtr_control_timer_fn, 0);
-+
- 	rdma_transport->active = true;
- 
- 	list_for_each_entry(path, &transport->paths, path.list) {
-@@ -3089,7 +3092,10 @@ static void dtr_set_rcvtimeo(struct drbd_transport *transport, enum drbd_stream
- 
- 	rdma_transport->stream[stream].recv_timeout = timeout;
- 
--	if (stream == CONTROL_STREAM)
-+	/* Not armed once teardown started: the ping work that calls this can
-+	 * run after dtr_free() shut the timer down (see dtr_free()).
-+	 */
-+	if (stream == CONTROL_STREAM && rdma_transport->active)
- 		mod_timer(&rdma_transport->control_timer, jiffies + timeout);
- }
- 
-diff --git a/drbd/drbd_transport_rdma2.c b/drbd/drbd_transport_rdma2.c
-index 2b27c71d9..e4e731560 100644
---- a/drbd/drbd_transport_rdma2.c
-+++ b/drbd/drbd_transport_rdma2.c
-@@ -963,7 +963,7 @@ static void dtr_free(struct drbd_transport *transport, enum drbd_tr_free_op free
- 		}
- 	}
- 
--	timer_delete_sync(&rdma_transport->control_timer);
-+	timer_shutdown_sync(&rdma_transport->control_timer);
- 
- 	if (free_op == DESTROY_TRANSPORT) {
- 		list_for_each_entry(drbd_path, &transport->paths, list) {
-@@ -2812,7 +2812,7 @@ static void dtr_rx_cqe_done(struct ib_cq *cq, struct ib_wc *wc)
- 			return;
- 		}
- 
--		if (stream == ST_CONTROL)
-+		if (stream == ST_CONTROL && rdma_transport->active)
- 			mod_timer(&rdma_transport->control_timer,
- 				  jiffies + rdma_stream->recv_timeout);
- 
-@@ -5708,6 +5708,9 @@ static int dtr_prepare_connect(struct drbd_transport *transport)
- 	atomic_set(&rdma_transport->first_path_connect_err, 1);
- 	init_completion(&rdma_transport->connected);
- 
-+	/* dtr_free() shut the control timer down; make it armable again. */
-+	timer_setup(&rdma_transport->control_timer, dtr_control_timer_fn, 0);
-+
- 	rdma_transport->active = true;
- 
- 	list_for_each_entry(path, &transport->paths, path.list) {
-@@ -5808,7 +5811,10 @@ static void dtr_set_rcvtimeo(struct drbd_transport *transport, enum drbd_stream
- 
- 	rdma_transport->stream[stream].recv_timeout = timeout;
- 
--	if (stream == CONTROL_STREAM)
-+	/* Not armed once teardown started: the ping work that calls this can
-+	 * run after dtr_free() shut the timer down (see dtr_free()).
-+	 */
-+	if (stream == CONTROL_STREAM && rdma_transport->active)
- 		mod_timer(&rdma_transport->control_timer, jiffies + timeout);
- }
- 
--- 
-2.43.0
-
+Thanks, applied.
