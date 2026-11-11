@@ -1,96 +1,56 @@
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=209.85.128.50
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=100.103.45.18
 ARC-Seal: i=1; d=subspace.kernel.org; s=arc20261015; a=rsa-sha256; cv=none;
-	t=1794386110;
-	b=h9RO6+BoSO6oe3Li2q+oBi2CL93SZmrDQ0+htXU0Azlz0/oraibtprSKJHdANLlB+gbN
-	 SwzncWm+VP+7L3a9ZRjMfo/yzPMmYO/NIZjqxu5KereBJKWP3lobVoOldZ1rwZhaloCTS
-	 ZeCbxvi0dBAG1Ha6zvhJoQTBlpFlaLoz5qy+UX8blTR/wkg8V3/Xk2QFgO9tp5CBdXqlU
-	 68GGXGLG4je9GztC5bozZAaVubxiQjUZnGPxZN2qyfSxYPcQ/8yG60yA+L1noz2NHSDY4
-	 razlGKxseckPo+W26Hhumy+zGxMymk+dryJzqj8yHDQ5Ja4R8TDMtqNKjQaUvLLlA1g==
+	t=1794432167;
+	b=TvOT+LvslfD98sxTDl1bFowaLtxwOQ3vnKb7fYGJMfFtFqEX+A21DsTDTTCEo0Ozu4gh
+	 9o9G7gspYFR7vZVReMav//CIgie8K+LFM5yKiREWjA2prMUQAOdrNeGgk2I0YWOmNwAcN
+	 VBDfxxntCvahkqYbCC2RThesS//p9Yj5FGRYIWnynlg2frgT6XLQVE9+Vi1MCVJY0Idh3
+	 KJkk94WiUu5Ntvxv3lbAJtAh/C1aN5s/GRNWWFirogAjRNwF6k6xNaDWwFcIlRURsuZ7S
+	 IhdOUNBEzXenjIJdZZdSaS0U2kHAh6kc++usc1VHdtG/0pSf/i2TiSUjq8sEF9XnV0A==
 ARC-Message-Signature: i=1; d=subspace.kernel.org; s=arc20261015;
-	a=rsa-sha256; c=relaxed/relaxed; t=1794386110;
-	h=DMARC-Filter:Received:DKIM-Signature:X-Google-DKIM-Signature:
-	 X-Gm-Message-State:X-Gm-Gg:X-Received:Received:From:To:Cc:Subject:
-	 Date:Message-ID:X-Mailer:MIME-Version:Content-Type:
-	 Content-Transfer-Encoding;
-	bh=sSx1r6YADSLNod2etVKoZeGoyw4STJkD6JZ9QURsIZg=;
-	b=0hT6p9xrKmu1y7g1xidVBPgPZYZvH4ddW5cKnwKsgpht0hVRSWqAsizoThGWkj9tuqdZ
-	 U2dW7xooug4r7KhTZpK7KVikhJVxQDNDGeKKFVkLg6veMM/7Bw/OhZh5gkS7qKZhwJjo4
-	 mEEw2qjgrARY/ii3tX7tnWbt3qYLqj3s7gwZOJva3zF2mx7thphc6NeooA25Ll+RfA/+f
-	 2f1fgJdFWaKREDOEbqY4CVugTjxGWoOhRyR1eIrklAttyteysi4l4c8xgP7UKNVhTDiwg
-	 GB7DHs6OdQbERaQgW2XhPgCmPHquM79kpHhg6uOeLIf76DoZ+bqiAa/E6uJpxDOepug==
+	a=rsa-sha256; c=relaxed/relaxed; t=1794432167;
+	h=Received:DKIM-Signature:Date:From:To:Cc:Subject:Message-ID:
+	 References:MIME-Version:Content-Type:Content-Disposition:
+	 Content-Transfer-Encoding:In-Reply-To;
+	bh=qNxKPiQeUFdgj5mk31q87Xj7ea3z7WwoZY5qvyPJ8+A=;
+	b=AH7S6p625WkAmc06SBsI+EyQPsJ2OX79hHCbdCYIlc9R2A5NgFJPXgrvhZLxep998a+h
+	 O/9/2oXjpIdyoJKVuvc4YbHYa9+BPqNolp/Fc0jNYSo1jad49ac+yD6Au/dkcYV0XdFi2
+	 mNVsPgNvWqiR/tjO3p4441Jovd5j/ELVjEbaxVjUbDph75ooRHwZVyKnY2kEZbMixxDnY
+	 sOHMMJMQ0H4fcfUdusCOldwepwK7y+/hioYxQ1XPXmLEEYHgQGFO79zd0RBW0EpmXudWq
+	 ahEGl6hyXKkzikEj7Bck8UjCSdHGLvHyVu+lWEDk5VatBJaSCJIFQE1t6B93GA0ndyQ==
 ARC-Authentication-Results: i=1; smtp.subspace.kernel.org; 
-	dmarc=pass header.from=linbit.com;
-	spf=pass smtp.mailfrom=linbit.com;
-	dkim=pass header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=tTR78MQ6;
-	arc=none smtp.remote-ip=209.85.128.50
-Received: from mail-wm1-f50.google.com (mail-wm1-f50.google.com [209.85.128.50])
-	(using TLSv1.3 with cipher TLS_AES_128_GCM_SHA256 (128/128 bits)
-	 key-exchange X25519 server-signature ECDSA (prime256v1) server-digest SHA256)
+	dkim=pass header.d=kernel.org header.i=@kernel.org header.a=rsa-sha256 header.s=k20260515 header.b=jQgVMMUm;
+	arc=none smtp.remote-ip=100.103.45.18
+Received: from smtp.kernel.org (quasi.space.kernel.org [100.103.45.18])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange X25519 server-signature ECDSA (prime256v1))
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 25FFA60A2603
-	for <drbd-dev@lists.linux.dev>; Wed, 11 Nov 2026 08:35:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org 25FFA60A2603
-Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com
-Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=linbit.com
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 73939606A321;
+	Wed, 11 Nov 2026 21:22:47 +0000 (UTC)
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key, unprotected) header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=tTR78MQ6
-Received: by mail-wm1-f50.google.com with SMTP id 5b1f17b1804b1-4a2167bd087so28846865e9.3
-        for <drbd-dev@lists.linux.dev>; Wed, 11 Nov 2026 00:35:09 -0800 (PST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linbit.com; s=google; t=1794386108; x=1794990908; darn=lists.linux.dev;
-        h=content-transfer-encoding:content-type:mime-version:message-id:date
-         :subject:cc:to:from:from:to:cc:subject:date:message-id:reply-to
-         :content-type;
-        bh=sSx1r6YADSLNod2etVKoZeGoyw4STJkD6JZ9QURsIZg=;
-        b=tTR78MQ6J+Dkp4ybRVCC8KR+zeY/ZbMaL75SDdPaO8NbvZzhrGT6kXqRBu5QDIft0E
-         PpcateZW85OCbbhCaVMkTyyGUzgs365JO5D3d97E+j66uqQ0lgd50d5WzM2UQRl9s2dR
-         dNSsxV56zR0vDBFGXeTyZQ1suqUD/fj4iuySn22qSZ74DPgkweaKMcgDpMpI9HoAmUwT
-         +QfMqFV5V6kAzsgXslVaGvip0sQuXAj9unMfiK12VWeTIku+VXa1d8ipZxqkDVFXKh6K
-         +jhVBgKPDJd6O9bxuheN38NFSSW5znZa6li3oGtJeZvc7/UGw/nk4ADNokv1MVW60Ud/
-         lxhw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20260707; t=1794386108; x=1794990908;
-        h=content-transfer-encoding:content-type:mime-version:message-id:date
-         :subject:cc:to:from:x-gm-gg:x-gm-message-state:from:to:cc:subject
-         :date:message-id:reply-to:content-type;
-        bh=sSx1r6YADSLNod2etVKoZeGoyw4STJkD6JZ9QURsIZg=;
-        b=KUb1GzfWuBetu0rVJ0VfLwCZFLeZ5YiJWwF7r4kEAHFJE+eU5tt5i6sTtUgTfH5HNP
-         NGfPM02PEwreTCHXtc63CkcbA9kZEekWBSJXP3x7uFOv5yACz61+DjhpyjoH/8iNs8Pt
-         g/WiCr4LVPXstff81UvCD5AufV8wwXlJVPs/d5UrNSlY3PxCFIK782Swqmw0eihoMgjc
-         58S3XuKUkiwVw3KIGQ2oyW5L2K19wFtAmLM9t3KAq3irDl8h7c+x6FifX0O5CDLNOfGJ
-         Pq9f9zKadSdIS3o9ngW9Of+2e7xQwX6uGCNsPno0Tekkh5QG9/KHhsjv9KNKV6vShWFi
-         ygKg==
-X-Gm-Message-State: APuU4Z+TRtShf5FRa3GqwxEOUfb4GwESuRcb3+asxOxGC7wXUJylY3vo
-	OQYBRWdd90Dkelf0unwYqKzMLk87mdivQiUhzuccICsSeJpJavBx3gx9Tz0sHlUGfWF/RR4qQ6E
-	buhH04rk=
-X-Gm-Gg: AYBFou3qdqA4DUT+cFau3IQUVurNbZZLfddjQS5cdA5WUBTzb/lnf0aFZkLxLaXVqQI
-	iqvIeXET0ceaKyzst725rt59QrSxtsgp7E/Ju3mh2rYX+HZYgXE+mksFpU7HEVOH9kguCDlYTo7
-	315Krw+wXAYpBD22xIF3muMDVu2CPFYaxYhIvbuhgOmwHcDl27wbzDP1ommOT9J83gojKVtUR6F
-	/frCsgFose/7LT2kVKkbpsm0AK0ZjuViKQZw07xxk1lRBhgcfcCzTPmLBU7Z7oBMMZeF4e8dHn4
-	4UBduZF0sDmLNIde5nXgeTSNLtConQVAFSPablf0vF7olWDkSu32WPZZFK2JIWsdDFratY7kLkS
-	LU+wbauoinuR9Gwz87+AR89Du1zv9F0AnZuGSZpDYbr4R7arNCxmdZ1slStnLgrknK9Q+i66XzK
-	e8c1tcQnDhq27bDmotGKKidQNkmF9OLrug2+68deNILedORwaCclPuBZyT1mYq/WnXjhlH/pKgn
-	GUDK6Qeg7n1/cwteP6j3ZE/lHc24IvXx/a6zSH6ftMsp967HsBOTKcO0G29ldhtvctgYWZ4AlHI
-	V3rZA1weXd1kM4rBDpBIPs/ti0HUZRDj99NtBVXR9uAYNi19ANSF78qUU4BFmzW5QDlPuXANlw=
-	=
-X-Received: by 2002:a05:600d:82e5:b0:4a1:faa1:3813 with SMTP id 5b1f17b1804b1-4ba0939c32dmr32175315e9.27.1794386108056;
-        Wed, 11 Nov 2026 00:35:08 -0800 (PST)
-Received: from linbit.com (h082218129081.host.wavenet.at. [82.218.129.81])
-        by smtp.gmail.com with ESMTPSA id ffacd0b85a97d-49835c37bdfsm9689492f8f.22.2026.11.11.00.35.07
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Wed, 11 Nov 2026 00:35:07 -0800 (PST)
-From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: drbd-dev@lists.linux.dev,
+	dkim=pass (2048-bit key) header.d=kernel.org header.i=@kernel.org header.a=rsa-sha256 header.s=k20260515 header.b=jQgVMMUm
+Received: by smtp.kernel.org (Postfix) with ESMTPSA id D3EF01F00A05;
+	Wed, 11 Nov 2026 21:22:46 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=kernel.org;
+	s=k20260515; t=1794432167;
+	bh=qNxKPiQeUFdgj5mk31q87Xj7ea3z7WwoZY5qvyPJ8+A=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To;
+	b=jQgVMMUmlD0SpJ0KID7Y8HWh8olv7I/ZO4L0+By/wkgx92QG/AE4pRs0m+gyTlYqW
+	 eZGfzDQjaxSi8r2othzX0qSzrYm0SluOsWeu0BlJOEnpL7umc8LHSepnthDsmlLq+O
+	 KuJZdeuFU9tlgTd5vjU1ywseP51tFuKXK87tNyF3eWIqGRu+Zjl+AAgjK3heZlkhBP
+	 ZvAPkWWzMs2WXFxCPz6+WWPP6VuFtihLrB1JsJ5zOtpCxxze1UbdPibLUkC0iGItcM
+	 9OAbVr+KeYhSzelIsbsv/mCWVyLGe+gBRA3D/quBx8uwyXEfiNEewrD1yiFzXf+25t
+	 fb2OY6ifqFDoQ==
+Date: Wed, 11 Nov 2026 13:22:45 -0800
+From: Eric Biggers <ebiggers@kernel.org>
+To: Christoph =?iso-8859-1?Q?B=F6hmwalder?= <christoph.boehmwalder@linbit.com>
+Cc: Jens Axboe <axboe@kernel.dk>, drbd-dev@lists.linux.dev,
 	linux-kernel@vger.kernel.org,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-block@vger.kernel.org,
-	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-Subject: [PATCH] drbd: select CRYPTO and CRYPTO_HASH
-Date: Wed, 11 Nov 2026 09:35:05 +0100
-Message-ID: <20261111083505.3998706-1-christoph.boehmwalder@linbit.com>
-X-Mailer: git-send-email 2.56.0
+	linux-block@vger.kernel.org
+Subject: Re: [PATCH] drbd: select CRYPTO and CRYPTO_HASH
+Message-ID: <20261111212245.GB41158@quark>
+References: <20261111083505.3998706-1-christoph.boehmwalder@linbit.com>
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
 List-Post: <mailto:drbd-dev@lists.linux.dev>
@@ -100,40 +60,41 @@ List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 List-Owner: <mailto:drbd-dev+owner@lists.linux.dev>
 Precedence: list
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <20261111083505.3998706-1-christoph.boehmwalder@linbit.com>
 
-DRBD uses the shash API for the data integrity, online verify and
-checksum-based resync algorithms and for peer authentication, but
-BLK_DEV_DRBD does not select the crypto core. With CRYPTO=n, a kernel
-with DRBD built in does not link:
+On Wed, Nov 11, 2026 at 09:35:05AM +0100, Christoph Böhmwalder wrote:
+> DRBD uses the shash API for the data integrity, online verify and
+> checksum-based resync algorithms and for peer authentication, but
+> BLK_DEV_DRBD does not select the crypto core. With CRYPTO=n, a kernel
+> with DRBD built in does not link:
+> 
+>   ld: drbd_sender.c:(.text+0x137f): undefined reference to `crypto_shash_finup'
+>   ld: drbd_receiver.c:(.text+0x58f): undefined reference to `crypto_alloc_shash'
+> 
+> Select CRYPTO and CRYPTO_HASH.
+> 
+> Fixes: b411b3637fa7 ("The DRBD driver")
+> Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 
-  ld: drbd_sender.c:(.text+0x137f): undefined reference to `crypto_shash_finup'
-  ld: drbd_receiver.c:(.text+0x58f): undefined reference to `crypto_alloc_shash'
+Looks fine for now, but you should consider what algorithms DRBD
+actually needs and consider switching to the library APIs for those
+instead of crypto_shash.  Presumably not more than a handful are
+actually used in practice with DRBD, and you don't really need to keep
+"supporting" MD4, Whirlpool, RIPEMD, CMAC-SM4, etc.?
 
-Select CRYPTO and CRYPTO_HASH.
+The "pass arbitrary string from userspace to crypto_alloc_*()" strategy
+has been problematic for other kernel features using it.  For one, it
+gives access to algorithms that are obsolete, insecure, redundant or
+make no sense for the use case.  And it makes it more difficult to
+remove unused algorithms from the crypto API, since it makes it harder
+to prove that they are in fact unused.
 
-Fixes: b411b3637fa7 ("The DRBD driver")
-Signed-off-by: Christoph BÃ¶hmwalder <christoph.boehmwalder@linbit.com>
----
- drivers/block/drbd/Kconfig | 2 ++
- 1 file changed, 2 insertions(+)
+Note that the crypto_shash API is also somewhat inefficient and
+difficult to use correctly, even though it's better than crypto_ahash.
+(And the DRBD driver got it wrong, so just FYI, you should expect fixes
+if you keep using it...).
 
-diff --git a/drivers/block/drbd/Kconfig b/drivers/block/drbd/Kconfig
-index 495a72da04c6..d707187d2cec 100644
---- a/drivers/block/drbd/Kconfig
-+++ b/drivers/block/drbd/Kconfig
-@@ -11,6 +11,8 @@ config BLK_DEV_DRBD
- 	depends on PROC_FS && INET
- 	select LRU_CACHE
- 	select CRC32
-+	select CRYPTO
-+	select CRYPTO_HASH
- 	help
- 
- 	  NOTE: In order to authenticate connections you have to select
-
-base-commit: aa7014f8d7565cfea117eac36a5de0a05eba65a4
--- 
-2.56.0
-
+- Eric
