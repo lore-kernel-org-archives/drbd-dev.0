@@ -1,101 +1,99 @@
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=209.85.128.43
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=209.85.214.173
 ARC-Seal: i=1; d=subspace.kernel.org; s=arc20261015; a=rsa-sha256; cv=none;
-	t=1794925863;
-	b=etlmHgDF3wCtMqGW2wp9dckgQdoRbjUkkt3Yl9BBQSrNBGj5vC6qS53kYMJmv8SBiQRH
-	 Nhxbp+ppJ5Vv5FsI2nhnuFrts5R9iiaD6gLCpu+XQTgq9N6xpQFlVQpB+VEUzZgBvhtv5
-	 BNj1MFNXuxtw13phHWNBYVgjIXCEFO7vpCeL1UQSh4vwFBeCs6cDDlChwVe3S96DnMNkG
-	 GjwwUnI7EpX8dnu8uvUMpFADGTM9snuKeUhK2bQA9e2ALyKudv3dEs7Mwtq7p6lhcx2vW
-	 XvSeLyYMOQcLFC4cvHHytHqxzZsv5EzzVjuDaeLK906XaCikix4XAOuw4hDKH4IqQ5w==
+	t=1795175100;
+	b=ZtyxOO/5RzViEabZg3wGBGYGnbwoEBXDaUfW2//A06MlEN+f28QTlFtib2ZZV1MMaxV4
+	 qBsWe5ZBJdlQwRRID0SnVzDs698N1ji1XE+HkJpdL1O7nxVlCcvV6os0yVzEO45Pha670
+	 bAYcXEkghN+EuG0EK8U983r6//wybEyr6As0ZHf+stpgjDaHsMUcc7rTgkNjZ6RPWo4vK
+	 rBOFJMNTEHKvURYBX//YWmpUAILzQJEAMXcy4G2SyQSn+x0AIwCcUO9PmMlaoMfHeEZ4l
+	 cjFzAwLXhDZZp1quL2YSmrHF0yBnpgD/pO+043fE9R/Q1Hzu/QaPbHBOUbXPQ1h7ShA==
 ARC-Message-Signature: i=1; d=subspace.kernel.org; s=arc20261015;
-	a=rsa-sha256; c=relaxed/relaxed; t=1794925863;
+	a=rsa-sha256; c=relaxed/relaxed; t=1795175100;
 	h=DMARC-Filter:Received:DKIM-Signature:X-Google-DKIM-Signature:
 	 X-Forwarded-Encrypted:X-Gm-Message-State:X-Gm-Gg:X-Received:Received:
-	 Date:From:To:Cc:Subject:Message-ID:Mail-Followup-To:References:
-	 MIME-Version:Content-Type:Content-Disposition:
-	 Content-Transfer-Encoding:In-Reply-To;
-	bh=0ph2zl6rwyEKg3O5TgI+UXa3FjOJ6TNy4j3lJzs1fJg=;
-	b=tMwLaHRSeQqhBk8ywZhd+V171tA51P5InqiXDWv/UChcggvTZQ47Rn2js3ezu4ico1B+
-	 L3aesXhLWFxTYTV4CoQqAFMToTUYh3Z0Nm/wGaLzKIZUpv3MyJjpG1PZz3VcxCKhshvuE
-	 hG5Nr5yxkustVKObHtfm4K1ndd5GUHs0zT4/IZL7Hyo341Axf0rJ9Q02/+Y3mof+BWZsS
-	 XLIzhUaP5vxxmfHYgI9lxvxaoBK8ZiwTE6iYZw2NrDIvI6HogSIPKIPPi9AqNQVZyUUIh
-	 3rL3N9DKXW9pU5Bvnhlm7IXmF/wxY2axLJ/ev3umZWgg9IRp4ft66Yr8yvUlHhrs1iA==
+	 From:To:Cc:Subject:Date:Message-ID:X-Mailer:In-Reply-To:References:
+	 MIME-Version:Content-Type:Content-Transfer-Encoding;
+	bh=sdsG+eThRvcI9HCYyGBK10hDw1tWFZFbpCUEL03/hJY=;
+	b=C7pzgByq41DTmna36TAfaSZhiUKrsz6JYQODF+FP1OqvZqri1MnIL28BWqir8gjwudhG
+	 lgaTtRqdGHJJtGBEF1vU6Dv+TOwa8Jy2o08TcvoPr8FGlukevnKjHkQBjmCDpMIGSKp4W
+	 V/bbhsOdMI9n7/kGC3A2E6xOEhfaB5vnoUZFyimlbkFgEvRy8vQupGbXykTkZVAcpY51O
+	 Zk/HHTUCRePSPNwGYGuo11fVM6wL4DdfcL1KQXMH7q5pBLOMEreeQp+TMH7zcNCVJfUTV
+	 fou5bVS2p52gjJoxCnwPl6N20Dj+Bt21kwmPqdOy5b6gy3QvEMj+q8zapyGzeIeiRGA==
 ARC-Authentication-Results: i=1; smtp.subspace.kernel.org; 
-	dmarc=pass header.from=linbit.com;
-	spf=pass smtp.mailfrom=linbit.com;
-	dkim=pass header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=IIxV05Aj;
-	arc=none smtp.remote-ip=209.85.128.43
-Received: from mail-wm1-f43.google.com (mail-wm1-f43.google.com [209.85.128.43])
+	dmarc=fail header.from=isslab.korea.ac.kr;
+	spf=none smtp.mailfrom=isslab.korea.ac.kr;
+	dkim=pass header.d=isslab-korea-ac-kr.20260707.gappssmtp.com header.i=@isslab-korea-ac-kr.20260707.gappssmtp.com header.a=rsa-sha256 header.s=20260707 header.b=NyX3fSy5;
+	arc=none smtp.remote-ip=209.85.214.173
+Received: from mail-pl1-f173.google.com (mail-pl1-f173.google.com [209.85.214.173])
 	(using TLSv1.3 with cipher TLS_AES_128_GCM_SHA256 (128/128 bits)
 	 key-exchange X25519 server-signature ECDSA (prime256v1) server-digest SHA256)
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 9182A606A332
-	for <drbd-dev@lists.linux.dev>; Tue, 17 Nov 2026 14:31:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org 9182A606A332
-Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com
-Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=linbit.com
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id F1DB6606A338
+	for <drbd-dev@lists.linux.dev>; Fri, 20 Nov 2026 11:44:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org F1DB6606A338
+Authentication-Results: smtp.subspace.kernel.org; dmarc=fail (p=none dis=none) header.from=isslab.korea.ac.kr
+Authentication-Results: smtp.subspace.kernel.org; spf=none smtp.mailfrom=isslab.korea.ac.kr
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=IIxV05Aj
-Received: by mail-wm1-f43.google.com with SMTP id 5b1f17b1804b1-4a2153c8525so31014935e9.3
-        for <drbd-dev@lists.linux.dev>; Tue, 17 Nov 2026 06:31:02 -0800 (PST)
+	dkim=pass (2048-bit key) header.d=isslab-korea-ac-kr.20260707.gappssmtp.com header.i=@isslab-korea-ac-kr.20260707.gappssmtp.com header.a=rsa-sha256 header.s=20260707 header.b=NyX3fSy5
+Received: by mail-pl1-f173.google.com with SMTP id d9443c01a7336-2f041f88577so4635265ad.1
+        for <drbd-dev@lists.linux.dev>; Fri, 20 Nov 2026 03:44:59 -0800 (PST)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linbit.com; s=google; t=1794925861; x=1795530661; darn=lists.linux.dev;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :content-type:mime-version:references:mail-followup-to:message-id
-         :subject:cc:to:from:date:from:to:cc:subject:date:message-id:reply-to
-         :content-type;
-        bh=0ph2zl6rwyEKg3O5TgI+UXa3FjOJ6TNy4j3lJzs1fJg=;
-        b=IIxV05AjECDBFBifR2itiv/wBy3pfufRiTCDic7E0UlyU5E34nxUXKzbghAwLjWgxJ
-         Zt+AiLGPxJpp28i+V/8PRvuXVrwYg8nvLpx2+LZgjl5lf9Dnaziih2HmpCi3szfKrHIc
-         RjogBgmNsYmQOeEnbkaRgLaDEfQm/zn065sl4Jw9iMTQIjixvJbEMnMj1+H3PiDadAkp
-         uKBGTI4+VhLRcWMwbygSIwk6UxUYz1cDTYT/KR+3YQBuBHrI60kmdbUZj2qfrH5JA4xO
-         s5FhAOog2HJIUe7RNjA8LpGDiLUY0bCkzxTJWbWq3vcEj3Ya3o/bW5cKIx9K8L2/sLwh
-         e3Rw==
+        d=isslab-korea-ac-kr.20260707.gappssmtp.com; s=20260707; t=1795175099; x=1795779899; darn=lists.linux.dev;
+        h=content-transfer-encoding:content-type:mime-version:references
+         :in-reply-to:message-id:date:subject:cc:to:from:from:to:cc:subject
+         :date:message-id:reply-to:content-type;
+        bh=sdsG+eThRvcI9HCYyGBK10hDw1tWFZFbpCUEL03/hJY=;
+        b=NyX3fSy5hPsYh68DntpE9gn5nX01AI18vgPFgyHwp2+t2Lz0cx+oLWPMARNVH9Slqs
+         jMv6T50Kv/tK2FkOl/HTnClgXQoZ0iztiBzy0BI8bcmjVVtHO1mRbDpKbIrJw/xS72c+
+         qNggvUJGWg88xOo3MKePH+NWzhXuRsjSyOx1WxVOwx2/uOxV5ORQM87Vd9Z32dVF6hoy
+         VrAhmFDx4Nv+nvkdFMhl4adzxYxj8AbksRX+poiFGRhsjQnxRKNAgLyjz31AdVntYebZ
+         wBDa2q3FezPbRRzW1uu7cDKl/fFUCiQhhC1rBdcCh16BTtLadTmRxUeJG/B92QefhE6D
+         zDSg==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20260707; t=1794925861; x=1795530661;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :content-type:mime-version:references:mail-followup-to:message-id
-         :subject:cc:to:from:date:x-gm-gg:x-gm-message-state:from:to:cc
-         :subject:date:message-id:reply-to:content-type;
-        bh=0ph2zl6rwyEKg3O5TgI+UXa3FjOJ6TNy4j3lJzs1fJg=;
-        b=CGsoaxglvO3nA3rSHQDVaH6OKNv3ZMbp+93xYgW+h2niGAWAwOkTrI5LR6mGCQOR2s
-         EOZHujQW0EyPLGvDzUOC6QsuBwmsSfFn/yDX7CkGQIbmTe6kD98jcfOaiMPgh5K8eTQP
-         6oYiqbMKWu+mIlTalH2Y7Chkaki959hU7latKcyG/ErB+V7e0Lr5yIkk8S6TNnOx+pgR
-         +dcKmEmeI4yY+aqOoBGz3/od8mU5cjLNeDVih3uf/kdfrYZC/Q5ePXIR1GgNwg5ylWjm
-         PuID9khLbSGcw5e1/9WS9GJmZ3h3eKD0JpsfeCvdqtgr4kQnpbKa7br4fLQNdSvktEZX
-         Om6A==
-X-Forwarded-Encrypted: i=1; AL+hErEfFP4Nc3spF6jIcf1Hdg3OMJ00VosG6kCNZg1n1MkEYeHY5aPZZ8kC1RRNfCmaF8FSQevKMfPkfg==@lists.linux.dev
-X-Gm-Message-State: APuU4Z8oPpkLEFfnE9fpmg0QaWGs4bqJfyIfmiOTTv2rpbTi0+O/qWC5
-	CbHbwuL/oN9U4RzzhWm5G6AoghG6ZxB1gwZ36pNyCkKck6U0A1qH1bWXXcFTbk6r8tJl1rCXLww
-	rcCiR894=
-X-Gm-Gg: AYBFou3Q+nOl0GnwLfMFG6qh0C/RV7CasAqIa4tKHaQiMHDFSAOH30k9SzP+PdY1C2P
-	bhPp1+mKsjece4Y6A21mBllyCa1Y4+Q3FFIs1Dwur9oAv6npe1WPaY0bcREPF6H1yJmByQOK2ND
-	x9lU9BgL29POU9Vk1WMg2GjSV1B3jHycAELVSMrCp4w3o21+u8IsBzgMri0eOU9nVmx7S1/eXM8
-	//wtM31KozQvhLf0WfwYEvtlRfrXKC1tiRPiRY+AIlmyJcVm3cQxXR4RaJLOMBQSwb5Je/EFCHq
-	r4Phj6kexCAUjd5rewEThff6BnBxnwNoa+9E0XXH6Ba4NeJ19D8q++TB1oHONFkk4BAnbatY3Nt
-	lmABTi4a5OEhsum0Sj8rfkGNzsmAj5DliEhKlQMCb5f9wIMvavUyAXLJl5AgGwYIZ7jQDHKHH4A
-	YWmFbcCZqm8PTadodGH7aGwYDWoF7FWGi/0jwYQ9WmzEwWpF9gWB/upXq02s+BWjajELyJK9Zzr
-	7cXYSI7vQ9EPlYPe4G4ZwgcaID0LAQVIs8MBjwVn2Y2YUlxcTc0HbYwzDTgTfIgVp9CwK3hMaZY
-	ZgT9+ZlYobU4omyCAdmh31gzpPSE9TVh+Nio0f4v0jujIaSgmNpDh1agU4/EQpi6THYmWCvo
-X-Received: by 2002:a05:600c:512:b0:4a2:1a:a120 with SMTP id 5b1f17b1804b1-4bb55a5d7bamr222461205e9.6.1794925860901;
-        Tue, 17 Nov 2026 06:31:00 -0800 (PST)
-Received: from localhost (h082218129081.host.wavenet.at. [82.218.129.81])
-        by smtp.gmail.com with ESMTPSA id 5b1f17b1804b1-4bb783e9288sm73541775e9.15.2026.11.17.06.30.59
+        d=1e100.net; s=20260707; t=1795175099; x=1795779899;
+        h=content-transfer-encoding:content-type:mime-version:references
+         :in-reply-to:message-id:date:subject:cc:to:from:x-gm-gg
+         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to
+         :content-type;
+        bh=sdsG+eThRvcI9HCYyGBK10hDw1tWFZFbpCUEL03/hJY=;
+        b=vMz14KjvewQi6/5Y+V+OXztRk6rcqIMiePVdWbWoDhbJm3R0hS0tGqiDs4d0MSZfy7
+         QRSppn++J63bmibUcgSCuHXm7G+qjR76SmDu1agNJ1BpgVpXAzGDUDyQaN8I1qYhjKCP
+         kXqUVAbQ9cYEueQ7FevTPImAL9G28NDtaiemwqQV7bJ42I1LwDsvYfTBCdPE4D2q+wO3
+         HZU0apJxyUTjaxaPMVuNoSMVfwtx4pEKGINcToXnLg1s6bf1rIt9ym9o/1uoGDFCJDen
+         uT+ayzqhFWNL/ApLc59lotnaskRFbB+dzfGXypyyXjQ3aa1D9ePCk5Zw8J7Rsvr6uqY0
+         yItA==
+X-Forwarded-Encrypted: i=1; AL+hErEF0zylQZ6ZvZm6zJyC0Be6ZtP6DzXiBhUDNLN5Qpdr1a7j7+mlwLlurifWuN1orjzZnyogd/ftJg==@lists.linux.dev
+X-Gm-Message-State: APuU4Z9GZtdLQHV6NbuSd2RzTNJ2OTvndUAPKtGoO61b1KsJ+JssIX3X
+	UzhNVLPev3+yPukQgkU5Eu/D3f2ONkQQQNQKaoCMPsJe3ySscm3zbt9ZKIPNCQJlAqM=
+X-Gm-Gg: AZFdTZdfuD9zCDKq9RWABApXuyb2pl5zfplZG5fL2C0eq/F3fGi4tKJhX8oyuZys592
+	QeM6hcJSlaQGX3tTnqC+zupIU3EPVvhFTAftF9thcn43mByVkf8GJQnk3EbkPvroolKfH5vHRnw
+	bCIjB+IMYvwLi78xEbdkG4zK7/u5S7NTmvCxm7+BGjzr8KMXBGhdMTnaNNRNsXT7N+WMFY3YkyC
+	OXimc6fpvGQBaIU9SAxjo8YseorhUwVu51Hhbbn9URNDAzbMJmag+LbWBaQtQrdNBMYro/6kfX0
+	psTT3NZgJiC0GccFd3hrJk0pje1nIjpT6q6WCM/XYdg9E9Sh0ot1jUtd1E+dOZOWmCvAmwhCrc8
+	wmXZf9qUiJaaujao+5oDiR9ZkiK52BODjpbYXDUljqhDlRUSOVnn6Vc6f8y8nwDiPouVjsQ2gOL
+	dG7mp93l3HvlGRJFT8pMxj265GCUkSbo76kmesBIrhtS7+SKYUKpzP6pm1E82jI3/Y3WDoGIChF
+	jzKHVL5EOgygkE5baFARQfQQbDfmAb2Y2RrPaSTyuainjcNddEDlfHhjmZHnR9QWXDq/507t8+I
+	i19ZCDKGmXy2QuOc68yNRxndHJ31c/UcVJc62l+787li2KaiiONBcQHIsUSMOzV5zmD4u21I0fs
+	fM6YnNpndFKksXhCWXtS8yK+Gs4zHjPbFbmRs
+X-Received: by 2002:a17:903:2c50:b0:2e9:64b9:a330 with SMTP id d9443c01a7336-2f03f17d2ccmr29212195ad.11.1795175099419;
+        Fri, 20 Nov 2026 03:44:59 -0800 (PST)
+Received: from yhlee-960QFG.Davolink ([2406:5900:1044:110c:8b25:951:ad8d:5cc1])
+        by smtp.gmail.com with ESMTPSA id d9443c01a7336-2f03f1215e2sm13289485ad.63.2026.11.20.03.44.56
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Tue, 17 Nov 2026 06:30:59 -0800 (PST)
-Date: Tue, 17 Nov 2026 15:30:58 +0100
-From: Christoph =?utf-8?Q?B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-To: Eric Biggers <ebiggers@kernel.org>
-Cc: Jens Axboe <axboe@kernel.dk>, drbd-dev@lists.linux.dev, 
-	linux-kernel@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>, 
-	Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org
-Subject: Re: [PATCH] drbd: select CRYPTO and CRYPTO_HASH
-Message-ID: <avxkfIwp5tqxpwoX@linbit.com>
-Mail-Followup-To: Eric Biggers <ebiggers@kernel.org>, 
-	Jens Axboe <axboe@kernel.dk>, drbd-dev@lists.linux.dev, linux-kernel@vger.kernel.org, 
-	Lars Ellenberg <lars.ellenberg@linbit.com>, Philipp Reisner <philipp.reisner@linbit.com>, 
-	linux-block@vger.kernel.org
-References: <20261111083505.3998706-1-christoph.boehmwalder@linbit.com>
- <20261111212245.GB41158@quark>
+        Fri, 20 Nov 2026 03:44:58 -0800 (PST)
+From: Yehyeong Lee <yhlee@isslab.korea.ac.kr>
+To: philipp.reisner@linbit.com
+Cc: lars.ellenberg@linbit.com,
+	christoph.boehmwalder@linbit.com,
+	axboe@kernel.dk,
+	drbd-dev@lists.linux.dev,
+	linux-block@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] drbd: reject an out-of-range offset when decoding a compressed bitmap
+Date: Fri, 20 Nov 2026 20:44:54 +0900
+Message-ID: <20261120114454.3072690-1-yhlee@isslab.korea.ac.kr>
+X-Mailer: git-send-email 2.43.0
+In-Reply-To: <20261006035715.354417-1-yhlee@isslab.korea.ac.kr>
+References: <20261006035715.354417-1-yhlee@isslab.korea.ac.kr>
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
 List-Post: <mailto:drbd-dev@lists.linux.dev>
@@ -105,48 +103,11 @@ List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 List-Owner: <mailto:drbd-dev+owner@lists.linux.dev>
 Precedence: list
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Disposition: inline
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20261111212245.GB41158@quark>
 
-On Wed, Nov 11, 2026 at 01:22:45PM -0800, Eric Biggers wrote:
->On Wed, Nov 11, 2026 at 09:35:05AM +0100, Christoph Böhmwalder wrote:
->> DRBD uses the shash API for the data integrity, online verify and
->> checksum-based resync algorithms and for peer authentication, but
->> BLK_DEV_DRBD does not select the crypto core. With CRYPTO=n, a kernel
->> with DRBD built in does not link:
->>
->>   ld: drbd_sender.c:(.text+0x137f): undefined reference to `crypto_shash_finup'
->>   ld: drbd_receiver.c:(.text+0x58f): undefined reference to `crypto_alloc_shash'
->>
->> Select CRYPTO and CRYPTO_HASH.
->>
->> Fixes: b411b3637fa7 ("The DRBD driver")
->> Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
->
->Looks fine for now, but you should consider what algorithms DRBD
->actually needs and consider switching to the library APIs for those
->instead of crypto_shash.  Presumably not more than a handful are
->actually used in practice with DRBD, and you don't really need to keep
->"supporting" MD4, Whirlpool, RIPEMD, CMAC-SM4, etc.?
->
->The "pass arbitrary string from userspace to crypto_alloc_*()" strategy
->has been problematic for other kernel features using it.  For one, it
->gives access to algorithms that are obsolete, insecure, redundant or
->make no sense for the use case.  And it makes it more difficult to
->remove unused algorithms from the crypto API, since it makes it harder
->to prove that they are in fact unused.
->
->Note that the crypto_shash API is also somewhat inefficient and
->difficult to use correctly, even though it's better than crypto_ahash.
->(And the DRBD driver got it wrong, so just FYI, you should expect fixes
->if you keep using it...).
->
->- Eric
+This is superseded by v2:
+  https://lore.kernel.org/all/20261006141509.521128-1-yhlee@isslab.korea.ac.kr/
 
-Noted, we'll work on that separately. But I think in the meantime this 
-is better and more correct than nothing.
-
-Best Regards,
-Christoph
+Best regards,
+Yehyeong Lee
