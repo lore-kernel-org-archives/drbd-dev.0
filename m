@@ -1,98 +1,82 @@
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=209.85.221.44
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=192.198.163.10
 ARC-Seal: i=1; d=subspace.kernel.org; s=arc20261015; a=rsa-sha256; cv=none;
-	t=1795620954;
-	b=aZfdVpge+jwv1t7cwUMbUylWd873bs/HDBj1smyCaZMul1Jijzxc0pVminWdoWtt046c
-	 y4NsJpzIJ8mAyLmPW00p5Wmbq/tL2S7R3ho7QwOdyfm4AW6NoW7js32hSZQ90z8kq7Gm1
-	 NFJPiwGYzPt4DbDuH/EmVVBGbikKKoQkF3mC/TWBPOySZu290Ubt400XK/tORuQebinKN
-	 6TgEO/lUUD786inXiNWFzbyrR1H/EzASBJicfcR+YewxtKRvMe8eZ4wlNHHv8QM8ywl6A
-	 KSamYInCOGSewd3IsfRd6iYzYPWjsQnG2T3BIupclEBcXusDGH1iT5477Csk4U6jb1g==
+	t=1795638271;
+	b=MTkfXg5I6MQpxJ8+VfnncEEkiCM81hHwdbNY+PqTQ9SLd9HraWLjUF1I0fwjoOL4LYqg
+	 9JbDCxN2v0WZQPInScmfyp5+UL8e6h1M/gffzmOQvFIlGpoucDAch8h3vEAKsF2qtCIDZ
+	 ONMQ3172fNIQXCDnHr6l36aYaJ4Su7ftokZbCe6LvNhC18/Pnw4OzAH9Q5ZfXvurpYDQB
+	 FeTvzBZVSTRgIISNUtDbZvXpsOcRYnACXvMJn/L6f6XGBkEdnnwDQ3xZfaWeh/e9t+koE
+	 0T98FYNHZwZRL8ei+PA7KsTBBVJcHdOIVLmILIDKUyHkfEroydgKmZARAPHa4eBsSIQ==
 ARC-Message-Signature: i=1; d=subspace.kernel.org; s=arc20261015;
-	a=rsa-sha256; c=relaxed/relaxed; t=1795620954;
-	h=DMARC-Filter:Received:DKIM-Signature:X-Google-DKIM-Signature:
-	 X-Gm-Message-State:X-Gm-Gg:X-Received:Received:From:To:Cc:Subject:
-	 Date:Message-ID:X-Mailer:In-Reply-To:References:MIME-Version:
-	 Content-Type:Content-Transfer-Encoding;
-	bh=zW5K52MSqR13vjMOGRw7WSmYMI0ONd2XOyiatd+7KVc=;
-	b=qsK0Nvui40Z6BeJvKYVfHVxmPDHIN9BQW0lwT8fwP1pSRYQCTnbdMth60vmAELYLKNmZ
-	 +qd3esvpAN247zY73KA9H9ADlvZiLOrFelRNVAeWP6H7M/TraBS7uoyg7DsG43eJPCxC0
-	 TXjO0HMP/P6zdvyZrVyehOWv66SS4x9GhFEote/HbAYwIzN47zTMKPYOAzD2hy5xJLbrp
-	 iiWHM6r7UiDfwaRZCix6sn2Q2CFdXXOolcdWqu+ycal49PsQNzjIihdLDLwMlubY2sNps
-	 ACnRIipwY3SNovQScpGIhgS0V8hUv2DNkTCwVs50MWpwl0urhHHsd7joTmZFeEZTlMw==
+	a=rsa-sha256; c=relaxed/relaxed; t=1795638271;
+	h=DMARC-Filter:DKIM-Signature:X-CSE-ConnectionGUID:X-CSE-MsgGUID:
+	 X-IronPort-AV:X-IronPort-AV:Received:X-CSE-ConnectionGUID:
+	 X-CSE-MsgGUID:X-ExtLoop1:X-IronPort-AV:Received:Received:Date:From:To:
+	 Cc:Subject:Message-ID:References:MIME-Version:Content-Type:
+	 Content-Disposition:In-Reply-To;
+	bh=W6kSkTrweSQ0wcU2dbEyxHrUIkg5Sek2FnfGWXLCYjc=;
+	b=1s/hBarQWwDU8iQMZNUMd4suk88+ybXYdsnlvPyUYCxxB2i5D9pdj1GlDy28SksEoC28
+	 XrsBlh2TfkkJ+q8EMnRijX1jqXH7lHe0ayKfNklmRZYnRKDRixPwOiYVCVykMBJO8aap2
+	 QnTho39nH8RWLnxeSJ0Er9O9OIWZQVZe1oVqphCj+9DIG0vu2k3w3QlZ8txF6qkIlbi7X
+	 NMJqrNCzAGaHTMh682YjxTiEigerlnq0VNpCu8ony50XLdRkJTMLynxkF6tqxt+ZIHWre
+	 Es27LB47SSldGLnd3nQOKWUPs4hifQemrDIZINhmR/rPlbg1gBPQurQMCkBurEGKcEg==
 ARC-Authentication-Results: i=1; smtp.subspace.kernel.org; 
-	dmarc=pass header.from=linbit.com;
-	spf=pass smtp.mailfrom=linbit.com;
-	dkim=pass header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=wj1OOz0Y;
-	arc=none smtp.remote-ip=209.85.221.44
-Received: from mail-wr1-f44.google.com (mail-wr1-f44.google.com [209.85.221.44])
-	(using TLSv1.3 with cipher TLS_AES_128_GCM_SHA256 (128/128 bits)
-	 key-exchange X25519 server-signature ECDSA (prime256v1) server-digest SHA256)
+	dmarc=pass header.from=intel.com;
+	spf=pass smtp.mailfrom=intel.com;
+	dkim=pass header.d=intel.com header.i=@intel.com header.a=rsa-sha256 header.s=Intel header.b=SQFDt3z5;
+	arc=none smtp.remote-ip=192.198.163.10
+Received: from mgamail.intel.com (mgamail.intel.com [192.198.163.10])
+	(using TLSv1.2 with cipher ECDHE-ECDSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id B97A6606A339
-	for <drbd-dev@lists.linux.dev>; Wed, 25 Nov 2026 15:35:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org B97A6606A339
-Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com
-Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=linbit.com
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 9A2F9606A321;
+	Wed, 25 Nov 2026 20:24:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org 9A2F9606A321
+Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=intel.com
+Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=intel.com
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=wj1OOz0Y
-Received: by mail-wr1-f44.google.com with SMTP id ffacd0b85a97d-4acb44dcd7bso5214599f8f.0
-        for <drbd-dev@lists.linux.dev>; Wed, 25 Nov 2026 07:35:49 -0800 (PST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linbit.com; s=google; t=1795620948; x=1796225748; darn=lists.linux.dev;
-        h=content-transfer-encoding:content-type:mime-version:references
-         :in-reply-to:message-id:date:subject:cc:to:from:from:to:cc:subject
-         :date:message-id:reply-to:content-type;
-        bh=zW5K52MSqR13vjMOGRw7WSmYMI0ONd2XOyiatd+7KVc=;
-        b=wj1OOz0Y0y2cKqNcFbtC991XtXqWx69uYeN9C7dy7tu9sT+3/EESyvCAORBccDViAk
-         GgQz6yqPAUKNrjnqMB1qYVIVTjwIFv1l5cB8iLqhqvajdKhsV0Qt4kOstXbyKbehTubt
-         3lXvdSZhcinMJLiq4oEzSbeDWW1sLe0NBrXASESPXv1zmxt4QOoWGjbQrqCBSHvYy2YP
-         mhW/ev5JDZWX6fwLMDSIEwfzdhJ07l4nJ4dMl9B3FmyvfYcE+6zOCA3HxhYwVdTc8JVJ
-         8E3aR5XUXvzIs+P30fC3nc8ZiyUTIFEFWQFNyhe+nCG/Qcwac51NtH7bYBn1k9KjD9J3
-         YcdA==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20260707; t=1795620948; x=1796225748;
-        h=content-transfer-encoding:content-type:mime-version:references
-         :in-reply-to:message-id:date:subject:cc:to:from:x-gm-gg
-         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to
-         :content-type;
-        bh=zW5K52MSqR13vjMOGRw7WSmYMI0ONd2XOyiatd+7KVc=;
-        b=JvS9+bdUQh1EXqoR2LkyWPOGRm8geA9GfMJayJoKlWeGb2Dgqb9uH7TAyUfvziT49K
-         QcYvmneImEpg1rQi4P0Q5VSqdG2hD3WAlNnqD8uNRygkbJ56+2zgF1MqhKJi1Tcvtw+d
-         SZRLovrh6xFaymhstljrrOKObXe9j//5t76EkLGCYNxWH4nf4xfxbbwHZpytWnAWeyvh
-         2IeRYkoBedv+ZWaq4CiVZKeRWSf0CFPzznbLaQAKhJd/Xb03b2SOaxDtmwC8IqxQaHNj
-         LotDqhLp/2vX9XJtAtaba1D/DmAmQPpANASv2s0bvU61lW0eYC7Md+QfqNsFb60VuIxX
-         jaXQ==
-X-Gm-Message-State: APuU4Z9qQfx0iH5tOp4SxRqZRe5Zu4nUqVIeOCLfPfhZc6/76jpNmhMT
-	MWnTCDgdt3H9YCF4YSTpii+YSiABtdrd//d8rwAWiJERFKSV5E1qbJHl+VB52EB24W8=
-X-Gm-Gg: AZFdTZe1CdisUVGHkKZgbMfNXPrvIQhlIHTbBGVi9Q8vrQ8i2AESM12yMB2uSkViN0+
-	+Dpql3MBFN/Q8Esh894CH4nxHqvvfzSOBJyBuKvHBVaYkSZhnPI2VOt5HfLF+kCZCXBg/Uv/zUg
-	5Nw5LfazN7Yf8x11a9ycOJOx1tXN4kp8dUAv/sJbQY3N/svrO7W4XbxVVznAawDhAVjcetRiVtv
-	sROJRKlMr/DWJ4OdXM1tS7EOzxYpMZbu2YJ/9BU44mHbWUHJFHd64uYllRJICPss5yTliTWuvcn
-	uMRtQ3/Z/OgjpbkPUiL53oQ/8TllNWYRAH6IL5EJJItZojKBaaug5QSXEL2W9rxq0S8HfsMGB05
-	iKMoj2k6NBhTE16/DaKLhOtk0bmKyFbGaV0M/SRh9GVLnWoWjXEkIvli9ieSiOoLeV3SROPSN96
-	gWsM+gfNRGctFPTn3qxXU6DQL3UWjpNiploYaGYsU/+20UlsmhTWylHDabIrzNyQFLBSvN1WLWy
-	3HFGtljDCkY31EUU40MUve7AH5RmCpZQgS/jHZ7QDbEwbO85WgesG3HjtGKvr4HmB+dk/TuMWsZ
-	FeUJaCLYRfian8P+yfMSWaIKkTBCwM5mnwuH6TlUEGOAL0AxwJAhAMRW67Wo6MO6VtuHfn8mIw=
-	=
-X-Received: by 2002:a05:6000:1a86:b0:4ad:d65:aaf9 with SMTP id ffacd0b85a97d-4ad0d65afa1mr37658772f8f.56.1795620948143;
-        Wed, 25 Nov 2026 07:35:48 -0800 (PST)
-Received: from linbit.com (h082218129081.host.wavenet.at. [82.218.129.81])
-        by smtp.gmail.com with ESMTPSA id ffacd0b85a97d-4ab658e2d60sm35816275f8f.3.2026.11.25.07.35.47
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Wed, 25 Nov 2026 07:35:47 -0800 (PST)
-From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: drbd-dev@lists.linux.dev,
-	linux-block@vger.kernel.org,
-	linux-kernel@vger.kernel.org,
+	dkim=pass (2048-bit key, unprotected) header.d=intel.com header.i=@intel.com header.a=rsa-sha256 header.s=Intel header.b=SQFDt3z5
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple;
+  d=intel.com; i=@intel.com; q=dns/txt; s=Intel;
+  t=1795638271; x=1827174271;
+  h=date:from:to:cc:subject:message-id:references:
+   mime-version:in-reply-to;
+  bh=opOUzu9CI5VspuCJ7TqUH2I8StJt23oLfhcFKQY18Qk=;
+  b=SQFDt3z5WA4IKyGJB5hlp239vQ5NmWzBWzffMV3Ab6v3pkZc/L23tsCi
+   /7Ob2izsFjov8j5st606HAR8fMJXpqwBr6vuUbKDiOE4tKvvW2sdrtY4P
+   yy6oHBOhpUIYAu5sdHbblFJo+F1bXIVGVLKozJjLy/M9bR2kWr0wJ6shE
+   uRiCwnEW5aH40SlpgW/MH+efxJ9h/Ql08+2S0OW4cXzJJjjGeVpdYjyvv
+   tJWZMKU1SMhAbXJQMbDAgq4HnlHNlxmRZgUC2lbCm/r7lyWZnYYwlhxgT
+   YDnCiV5LOSkGgIxGVgIUbqveYiDOLojt2kTEvOLcXT7SREwcr3DigmXNy
+   w==;
+X-CSE-ConnectionGUID: lRKKR29YQqS8kgRg157wwg==
+X-CSE-MsgGUID: ij398mCFQqiaU1WzABX8Cg==
+X-IronPort-AV: E=McAfee;i="6800,10657,11977"; a="4419665"
+X-IronPort-AV: E=Sophos;i="6.27,233,1787036400"; 
+   d="scan'208";a="4419665"
+Received: from orviesa004.jf.intel.com ([10.64.159.144])
+  by fmvoesa104.fm.intel.com with ESMTP/TLS/ECDHE-RSA-AES256-GCM-SHA384; 25 Nov 2026 12:24:30 -0800
+X-CSE-ConnectionGUID: fnaUMappR4mcIFMGaoFcEg==
+X-CSE-MsgGUID: DG4ecEMZS5Sj2YHpzK1moQ==
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="6.27,233,1787036400"; 
+   d="scan'208";a="11835676"
+Received: from lkp-server01.sh.intel.com (HELO 0caa9d2d175c) ([10.239.97.150])
+  by orviesa004.jf.intel.com with ESMTP; 25 Nov 2026 12:24:28 -0800
+Received: from kbuild by 0caa9d2d175c with local (Exim 4.98.2)
+	(envelope-from <lkp@intel.com>)
+	id 1xWJXV-00000001SXe-2kch;
+	Wed, 25 Nov 2026 20:24:25 +0000
+Date: Thu, 26 Nov 2026 04:23:37 +0800
+From: kernel test robot <lkp@intel.com>
+To: Christoph =?iso-8859-1?Q?B=F6hmwalder?= <christoph.boehmwalder@linbit.com>,
+	Jens Axboe <axboe@kernel.dk>
+Cc: oe-kbuild-all@lists.linux.dev, drbd-dev@lists.linux.dev,
+	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-Subject: [PATCH v4 21/21] drbd: remove BROKEN for DRBD
-Date: Wed, 25 Nov 2026 16:35:11 +0100
-Message-ID: <20261125153511.3060599-22-christoph.boehmwalder@linbit.com>
-X-Mailer: git-send-email 2.56.0
-In-Reply-To: <20261125153511.3060599-1-christoph.boehmwalder@linbit.com>
-References: <20261125153511.3060599-1-christoph.boehmwalder@linbit.com>
+	Christoph =?iso-8859-1?Q?B=F6hmwalder?= <christoph.boehmwalder@linbit.com>
+Subject: Re: [PATCH v4 21/21] drbd: remove BROKEN for DRBD
+Message-ID: <20261126041726.kXD9a5hZ-lkp@intel.com>
+References: <20261125153511.3060599-22-christoph.boehmwalder@linbit.com>
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
 List-Post: <mailto:drbd-dev@lists.linux.dev>
@@ -102,29 +86,35 @@ List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 List-Owner: <mailto:drbd-dev+owner@lists.linux.dev>
 Precedence: list
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20261125153511.3060599-22-christoph.boehmwalder@linbit.com>
 
-Remove the BROKEN dependency now that the DRBD 9 rework is complete
-and the driver compiles cleanly again.
+Hi Christoph,
 
-Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
----
- drivers/block/drbd/Kconfig | 1 -
- 1 file changed, 1 deletion(-)
+kernel test robot noticed the following build warnings:
 
-diff --git a/drivers/block/drbd/Kconfig b/drivers/block/drbd/Kconfig
-index 713ac6c9f9f1..058a30efd6d0 100644
---- a/drivers/block/drbd/Kconfig
-+++ b/drivers/block/drbd/Kconfig
-@@ -8,7 +8,6 @@ comment "DRBD disabled because PROC_FS or INET not selected"
- 
- config BLK_DEV_DRBD
- 	tristate "DRBD Distributed Replicated Block Device support"
--	depends on BROKEN
- 	depends on PROC_FS && INET
- 	select LRU_CACHE
- 	select CRC32
+[auto build test WARNING on aa7014f8d7565cfea117eac36a5de0a05eba65a4]
+
+url:    https://github.com/intel-lab-lkp/linux/commits/Christoph-B-hmwalder/drbd-mark-as-BROKEN-during-DRBD-9-rework/20261125-163451
+base:   aa7014f8d7565cfea117eac36a5de0a05eba65a4
+patch link:    https://lore.kernel.org/r/20261125153511.3060599-22-christoph.boehmwalder%40linbit.com
+patch subject: [PATCH v4 21/21] drbd: remove BROKEN for DRBD
+config: m68k-defconfig (https://download.01.org/0day-ci/archive/20261126/20261126041726.kXD9a5hZ-lkp@intel.com/config)
+compiler: m68k-linux-gcc (GCC) 16.2.0
+reproduce (this is a W=1 build): (https://download.01.org/0day-ci/archive/20261126/20261126041726.kXD9a5hZ-lkp@intel.com/reproduce)
+
+If you fix the issue in a separate patch/commit (i.e. not just a new version of
+the same patch/commit), kindly add following tags
+| Reported-by: kernel test robot <lkp@intel.com>
+| Closes: https://lore.kernel.org/oe-kbuild-all/20261126041726.kXD9a5hZ-lkp@intel.com/
+
+All warnings (new ones prefixed by >>):
+
+>> Warning: drivers/block/drbd/drbd_receiver.c:407 function parameter 'connection' not described in 'alloc_pages_throttled'
+>> Warning: drivers/block/drbd/drbd_receiver.c:407 function parameter 'throttle' not described in 'alloc_pages_throttled'
+>> Warning: drivers/block/drbd/drbd_receiver.c:407 expecting prototype for drbd_alloc_pages(). Prototype was for alloc_pages_throttled() instead
+
 -- 
-2.56.0
-
+0-DAY CI Kernel Test Service
+https://github.com/intel/lkp-tests/wiki
