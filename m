@@ -1,84 +1,85 @@
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=209.85.128.52
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.remote-ip=209.85.221.41
 ARC-Seal: i=1; d=subspace.kernel.org; s=arc20261015; a=rsa-sha256; cv=none;
-	t=1795620921;
-	b=r2DDLna9VW6YL9bxPe5atv+ZTD+iz2ozkEDCjUZmNFv4sBzQ9MzF1o8VqSDhdmLWlCFR
-	 BKVMQ9wURpeGADE8SguG8vVnh9v+rUPMne1DgcLH8ADBlqhbdlvOh7TBdxeszuaXXslQO
-	 XvC8sdCg+4kQ6yrNJRwH2owC0G+PgyLhFDtC5IzNkYK/fneKZda/I4zysW1ZHObJd+3Tn
-	 lADjeUAh7VxhxBDfWJ1tqpayyUQ86p2a3tlJYoCSjQL+be2QD0LlqY1MvMp/4eTxerSiz
-	 1KeDnlBqGhR7iEoFwwqDyDBMvG2FPvEoHeWUYRHapZIABS/OEtBO3Z8bSD6Cp/XSARg==
+	t=1795620925;
+	b=B2733MBH3kuSWwo42+NM4MLzQPJMiHHSoSN+fld45KbOHRDho0Nn0Hz41t9TUyw9WHFF
+	 R08lbyzeIuXJZ0Sw5HgGbY5VLv2NVU1T8xjPwnAul98f7uJKEH3aby7cxfwWoRy+t/xtL
+	 VVTLcITPBcbIySSFFmv/zz1CraxqAGdHNB6vkpoc2J/RY+I23bp9HhuRQ0vsW08+GUVNP
+	 3qbPk2jCIOYpgPr/HBLbgHdy536dsrzaLMpMLZ+zQzOxqFVeOVS3j0bhl53vXE9cmpREe
+	 tf72RELNcwhzgqNmBiFAwEMcglwpian8j+0qrbQD4XCgrK2vncWcRpvJX8YHQpk5gaA==
 ARC-Message-Signature: i=1; d=subspace.kernel.org; s=arc20261015;
-	a=rsa-sha256; c=relaxed/relaxed; t=1795620921;
+	a=rsa-sha256; c=relaxed/relaxed; t=1795620925;
 	h=DMARC-Filter:Received:DKIM-Signature:X-Google-DKIM-Signature:
 	 X-Gm-Message-State:X-Gm-Gg:X-Received:Received:From:To:Cc:Subject:
 	 Date:Message-ID:X-Mailer:In-Reply-To:References:MIME-Version:
 	 Content-Type:Content-Transfer-Encoding;
-	bh=PgK9R6rYK5uGsq+Qxj61a2rF/pFgU34N0GKmfMnCnMg=;
-	b=tqUGb2bOc+P6RcYr10XPbIDQ8PEqneoCnBrHKIGht+MS4YuhuyAoa4j3kQeeOYsUs9Qo
-	 r64EPM2veBE5SXEGBFe8OZBgYJHOrBu8F4/Y2MJ15l8X1P+T55+JGTxKs6d/xkPKu3x//
-	 tX0pDiD74n0H6WK+UT5cFHXI4nEkZyRQowR1avLvtqUqQ5QLYhnAXz94AL9GvobcsodN6
-	 RT14VCbpRHIMtDVCGFhzq1gobB25832tNd/i06Fd6bLccGjh9UlRlVQKZRLJrp0LIBDtV
-	 nRxVuACH3WFbZxTtX+jMiV35sv9Wr2f5EwWNZcQJZiFANey+UGwKZn8gifiYM4o3RZw==
+	bh=08SvF4/s1Mkv/LWlCTJdqyP6ICP+uLyhPGvj+sBDKkI=;
+	b=GJFJRAVSfEwOdLVe8pkTbKoMp8zEyW48p0w8eO6FnthFBc2eVG00KhnOWp94xaVm0Guj
+	 UpxEGTnZvUH1a893s56pIESp4maQaqPUUDWIlNpLd8G6kGRQJoU40BRNNDtKZl6zloWL4
+	 6uk6RaRwJa2TADOee3zcNQOywXkJb/lysXnH2k3VkSvu9rYsq47Vdeme72Hpux2RG5qYz
+	 SxpzQp1PcGe4lDucvT/EbDR3oKbmm61EOR2zQ4zT0J7N0WvqgK3yw9RSyNbIeAV6RT180
+	 HQMae/Ybxd7/4CHSukMnNbCmDe2c79+VPHOo5k6bBLpzwljv3ZfEXpHxUx7K7/5iW4Q==
 ARC-Authentication-Results: i=1; smtp.subspace.kernel.org; 
 	dmarc=pass header.from=linbit.com;
 	spf=pass smtp.mailfrom=linbit.com;
-	dkim=pass header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=tp+ZusAt;
-	arc=none smtp.remote-ip=209.85.128.52
-Received: from mail-wm1-f52.google.com (mail-wm1-f52.google.com [209.85.128.52])
+	dkim=pass header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=2Aaqan0D;
+	arc=none smtp.remote-ip=209.85.221.41
+Received: from mail-wr1-f41.google.com (mail-wr1-f41.google.com [209.85.221.41])
 	(using TLSv1.3 with cipher TLS_AES_128_GCM_SHA256 (128/128 bits)
 	 key-exchange X25519 server-signature ECDSA (prime256v1) server-digest SHA256)
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 88D04606A32D
-	for <drbd-dev@lists.linux.dev>; Wed, 25 Nov 2026 15:35:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org 88D04606A32D
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id BC571606A331
+	for <drbd-dev@lists.linux.dev>; Wed, 25 Nov 2026 15:35:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.4.2 smtp.subspace.kernel.org BC571606A331
 Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com
 Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=linbit.com
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=tp+ZusAt
-Received: by mail-wm1-f52.google.com with SMTP id 5b1f17b1804b1-4bba5e17728so7945155e9.2
-        for <drbd-dev@lists.linux.dev>; Wed, 25 Nov 2026 07:35:19 -0800 (PST)
+	dkim=pass (2048-bit key) header.d=linbit.com header.i=@linbit.com header.a=rsa-sha256 header.s=google header.b=2Aaqan0D
+Received: by mail-wr1-f41.google.com with SMTP id ffacd0b85a97d-490d59c3edaso4048293f8f.1
+        for <drbd-dev@lists.linux.dev>; Wed, 25 Nov 2026 07:35:23 -0800 (PST)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linbit.com; s=google; t=1795620918; x=1796225718; darn=lists.linux.dev;
+        d=linbit.com; s=google; t=1795620922; x=1796225722; darn=lists.linux.dev;
         h=content-transfer-encoding:content-type:mime-version:references
          :in-reply-to:message-id:date:subject:cc:to:from:from:to:cc:subject
          :date:message-id:reply-to:content-type;
-        bh=PgK9R6rYK5uGsq+Qxj61a2rF/pFgU34N0GKmfMnCnMg=;
-        b=tp+ZusAtWfIU7DzGtu6GwCLfvZqIFHALWfeS6tx+aiejpgJzBoGYHR0XAeVTTzAjo5
-         riJTvwFfiKLWk7FrJywhPM5aEm6R4zOQ7b8CQ3EOhBthx7jgM7OE68Q2FslloTNmcW9O
-         xNd3iViidXppNwSjyMc5d7D/zX78xLoeE9uZpt2EfyF/mAKpoTGSHNXUSL1J+NYVVPfd
-         F1DRDWI5dh/0/4w81W1wIez7QR1NV/ldAR07T+N9gmZykBSvQkk9CbRVqMH5zmreGyO6
-         rCJtp+QBHR5P0omjVLa4/CFIdCaKdC/6p4jxXCrDOq1nHe0Imk+QAThXyyWZZ2HASOU1
-         CVuA==
+        bh=08SvF4/s1Mkv/LWlCTJdqyP6ICP+uLyhPGvj+sBDKkI=;
+        b=2Aaqan0DOxaLPzmpS1My2ji4vmxyuQ4YwZJPf6ruQ1yUSxfdOtZ49PcnRxlYxFrdy/
+         Gw4NZZJ+lztaXR2uxvebjitW8eep0FfF+OEwCPLq5CjvWd2/3XkHxN+wpywm/NseVQQ/
+         Lwsz3Nq2GN/rzxzn09ZMRHqqbKYbHNodF3d7a8KrlsANecSAgeI2YrQrw5vN5W6xxL4n
+         DJDur2xClZLMDtvTi6IVghB8D0ib7vO2Ahr+FJt0u4QOk4kqolPIRslZ4KHHLW8Mb6Rq
+         tIggOoWLZ5bhC2ZUCC/RQMLBBt4CVOwRGHJv2BFpcBS54BtdSlYJTAChKQ4yLmcaKAW0
+         XiVQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20260707; t=1795620918; x=1796225718;
+        d=1e100.net; s=20260707; t=1795620922; x=1796225722;
         h=content-transfer-encoding:content-type:mime-version:references
          :in-reply-to:message-id:date:subject:cc:to:from:x-gm-gg
          :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to
          :content-type;
-        bh=PgK9R6rYK5uGsq+Qxj61a2rF/pFgU34N0GKmfMnCnMg=;
-        b=1mb9vC2FeC0P5uoHx1q291FK7yLWIyhP6NpvthtHY9bANbFtiHtFS69rAcLx/rWQL7
-         29Cg01qjco0ujZoEyUCq4Rox/X8IcbkQibenTBKTAie6T6coFbGseTM9KXGF5Jfl5aPy
-         NP9hmZkFvPEcKrln1dzjE1AtkTUY5stgvdCxNSPKHUqacQK5wvRNhl9NaOFHLMhXtdT9
-         hhOUN6nohd4M3iDfi965IJpu3xC4Xn7ATtYoG0SFpaBO1dhwwu3YlKiLtR3nHE8GT1kp
-         X9eYMZgSFBYfG3h7Ne4q2xJpOomkUhrdqMlosls6r/olAbl3WGUqcpqw0dkdYCXvfMFq
-         NQ4w==
-X-Gm-Message-State: APuU4Z+BNugdB1RU4jzEBz4RnHzYtUy62Q5P16iEq9wpoKc1VMl6S5NC
-	E5QoGsHEXNPkAJ+bJp0ippb3LqfSlWdDeGAxU4na86EM57cJ2ubS0y3H8ztT0CAFbcQ=
-X-Gm-Gg: AZFdTZcGD8fQHK0hyHXaAcUDgLNDIj+ElAvoOzmFogvnthV22E0qgZ9rlqsM83DZBB6
-	GQHp3Tsl4gbxm2N0hPdZYRTjSfA8OJ4cb+i/NXQmHokR6bIy2JcrfxSHYKqDaZ0wbH/REKEtJfL
-	2D/CJz8VsJhJjm7+fEjCQJ+Jyk8SrGfxOUTMMYuo5T1ANKoHbcZPfB7vAHBjPMDVVGT0uU2UcqN
-	yT++1XKpjJWj85dvnaGkFBap+oXosO9gfBWZL745wAJOEhEwv51ogZlQjI5AQvgJ+KoBi9urlGn
-	8ijt+HwfmZLQdY8xuo55MMDeUV/jwfhskG49caE2ZlsJhVBQmVU25ZKrZVaCs1k2ENMKzA2uRle
-	Yj6q2wxA+FPFMKaUEi45s63rGdQ/AeH/GY9o5WE3raE7/HkY8q9H1BLHYqKiHCKURI8lD6tmf81
-	c06oNpuqnWPz7KvM0cLVY0PiW2T3BT1H1fcaB8rk6JZroABCsPoAsBNMReDpJzuFyO2kmbXevW7
-	65NrXs88aJ+ozTZdULNcPZ7C8GDkRu28EZ+kMvvm3xHYcwOIj4VrjkjH5rEw6JyqU2mAw+6Mgs8
-	vd3aisFYAAySGh48bVniZr4x2X689OwfSGm4lQgCMrpEu08U4kmDtwKhXEtwcHhovZAIiz1Uudi
-	tjypFTriUnt9a7SXzN3k=
-X-Received: by 2002:a05:6000:4616:b0:48d:e61d:68da with SMTP id ffacd0b85a97d-4abb3678783mr30522685f8f.20.1795620917642;
-        Wed, 25 Nov 2026 07:35:17 -0800 (PST)
+        bh=08SvF4/s1Mkv/LWlCTJdqyP6ICP+uLyhPGvj+sBDKkI=;
+        b=IGGcJ4CWHrSMiEQpUzSCxkJx1mcBSsGQ4/C+zFwEHIDMAxL+IEO2TXcqDjz3+67gHy
+         lHWkGDQODTw7+yH1XMGr2Pb+Pa7ici64oK9QaNTtutWWvZYNqAiEsG4JcO7t8iJbzayT
+         QZEJKYtI/IGYOFdR0Cw2F4ptpxELdw4PBFR7GEHghpS50CmnrjCs9lmE1p2v48yb2x4q
+         iz1/wnFYkcx9QjJdCyi6eIgM2Fzg3dk6puwfVWHf8nbmOMFpICEPWP86B/g5jnfYTlAl
+         rvrV/nyrCw1yay8xn+u2qEnyq6K87X3pTpRuV6vhy6DUlpFNNTETrRxrf74ZDhy1lwG1
+         SfRg==
+X-Gm-Message-State: APuU4Z8sYyvDROqiPmAuS6FPpUW4mnnAh/PwfdwvznSNWtfOGl85UQ+C
+	oopsKXiZ0v3QnmuDDsUoM53BfFcr5w6zFcpeDkpRe8mkj1uMxV7YQmXg2fto4K+YzPVhIqoZQFj
+	aGQh9aY8bcQ==
+X-Gm-Gg: AZFdTZeMgNmgeEt/geqBeFC7BeVXI2gIotugmYNIyCiY6a1EFL8DpY2IGzWIZe6AWJl
+	iABxkWSWhVipu7LaatBRuGg3TaUg8f2Zkxn/WtV2Y+6ZW0cxPl0WJrjMr6sDy2AeRMFNF/EV82C
+	IWC/fPqZ5gS9GvSL4YDvZ5/3Zf5ci99klhIclOavB9rYCYjIxQzj5bEyZMXzvgYLUPCOuARaCl2
+	+7fIM5NjPrvOlEC01oFmMdpRo/W6BGEiVQVoYrnDQsVHVw/YUpqPD9egunNyVZrdTR8d+e6X5J4
+	Bq4wiuJhkNfhRyJ05n9GVMadGVnltXYpKnjQjOxA+vE3kR4HYaA1Bh7Fi8uFONmX8CfBv3H7QX5
+	Moi3NcpDP4E0VdzkOfSQMhYZ0dYRj+k/MJnkM7Sd5WX1+ezm56GzKjqstaTH+6ZZ5vBMyivPOny
+	IKM/XUgC7/sbAwq+Q8BFJagSPc94THCvPzb0zcKgW77FmluYxUetvhXssVXSyrWH7HPiKH5b3Ly
+	TdAVwuzEP/nYu9mTFyZu7Fy2bUa68oC8933PsTtSlbNOzsZffZ0lLBEjg96aHFQmnKuYEB11moD
+	DUXN1vWgYB1QEmOYpc6SBSNSw7FjSri+di33yKFb76haDe2l+T+Sq2cvqttKD+o0o8FWVBpqHA=
+	=
+X-Received: by 2002:a05:6000:2083:b0:491:cd7:e96b with SMTP id ffacd0b85a97d-4aa5710d738mr43709432f8f.15.1795620921783;
+        Wed, 25 Nov 2026 07:35:21 -0800 (PST)
 Received: from linbit.com (h082218129081.host.wavenet.at. [82.218.129.81])
-        by smtp.gmail.com with ESMTPSA id ffacd0b85a97d-4ab658e2d60sm35816275f8f.3.2026.11.25.07.35.16
+        by smtp.gmail.com with ESMTPSA id ffacd0b85a97d-4ab658e2d60sm35816275f8f.3.2026.11.25.07.35.20
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Wed, 25 Nov 2026 07:35:17 -0800 (PST)
+        Wed, 25 Nov 2026 07:35:21 -0800 (PST)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
 Cc: drbd-dev@lists.linux.dev,
@@ -87,11 +88,12 @@ Cc: drbd-dev@lists.linux.dev,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>,
-	Andreas Gruenbacher <agruen@linbit.com>,
+	Roland Kammerer <roland.kammerer@linbit.com>,
+	Moritz Tanner <moritz.tanner@linbit.com>,
 	Joel Colledge <joel.colledge@linbit.com>
-Subject: [PATCH v4 02/21] drbd: extend wire protocol definitions for DRBD 9
-Date: Wed, 25 Nov 2026 16:34:52 +0100
-Message-ID: <20261125153511.3060599-3-christoph.boehmwalder@linbit.com>
+Subject: [PATCH v4 05/21] drbd: add TCP transport implementation
+Date: Wed, 25 Nov 2026 16:34:55 +0100
+Message-ID: <20261125153511.3060599-6-christoph.boehmwalder@linbit.com>
 X-Mailer: git-send-email 2.56.0
 In-Reply-To: <20261125153511.3060599-1-christoph.boehmwalder@linbit.com>
 References: <20261125153511.3060599-1-christoph.boehmwalder@linbit.com>
@@ -107,865 +109,1919 @@ MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
-Extend drbd_protocol.h with the packet types and structures needed for
-multi-peer operation.
+Add the TCP transport implementation as a standalone kernel module
+(drbd_transport_tcp) that registers itself with the DRBD transport
+abstraction layer.
+This extracts TCP replication details to a separate component
+rather than being hard-wired in the main module, so alternative
+transports can coexist and be selected at runtime.
 
-Two-phase commit (2PC) messages coordinate distributed state changes
-across all peers in a cluster.
-Data-generation-tag (dagtag) messages order application writes relative
-to resync IO, preventing stale overwrites during concurrent resync.
-Peer-acknowledgement packets carry a node bitmask so each primary can
-track which peers have persisted a write.
+The implementation manages two independent sockets per peer connection
+(data and control streams) and supports dynamic path add/remove while a
+connection is live. This is the foundation for DRBD 9 multi-path
+operation.
+It also integrates kernel-native TLS via the in-kernel handshake API,
+enabling encrypted replication. TLS support is a separate option,
+BLK_DEV_DRBD_TCP_TLS, which selects NET_HANDSHAKE, KEYS and TLS, like
+NVME_TCP_TLS does for NVMe/TCP. Without it, the transport refuses
+connections configured for TLS.
 
-The connection-features handshake now carries sender and receiver node
-IDs, establishing peer identity at the wire level.
-New feature-flag bits advertise these capabilities during negotiation,
-allowing DRBD to remain wire-compatible with 8.4 peers while enabling
-the full DRBD 9 feature set when both ends support it.
-
-Co-developed-by: Andreas Gruenbacher <agruen@linbit.com>
-Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
+Co-developed-by: Roland Kammerer <roland.kammerer@linbit.com>
+Signed-off-by: Roland Kammerer <roland.kammerer@linbit.com>
 Co-developed-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
+Co-developed-by: Moritz Tanner <moritz.tanner@linbit.com>
+Signed-off-by: Moritz Tanner <moritz.tanner@linbit.com>
 Co-developed-by: Joel Colledge <joel.colledge@linbit.com>
 Signed-off-by: Joel Colledge <joel.colledge@linbit.com>
 Co-developed-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 ---
- drivers/block/drbd/drbd_protocol.h | 620 +++++++++++++++++++++++------
- 1 file changed, 490 insertions(+), 130 deletions(-)
+ drivers/block/drbd/Kconfig              |   27 +
+ drivers/block/drbd/Makefile             |    1 +
+ drivers/block/drbd/drbd_transport_tcp.c | 1828 +++++++++++++++++++++++
+ 3 files changed, 1856 insertions(+)
+ create mode 100644 drivers/block/drbd/drbd_transport_tcp.c
 
-diff --git a/drivers/block/drbd/drbd_protocol.h b/drivers/block/drbd/drbd_protocol.h
-index be7dacac5a86..5f34c1adc39d 100644
---- a/drivers/block/drbd/drbd_protocol.h
-+++ b/drivers/block/drbd/drbd_protocol.h
-@@ -6,6 +6,9 @@
- #ifndef __DRBD_PROTOCOL_H
- #define __DRBD_PROTOCOL_H
+diff --git a/drivers/block/drbd/Kconfig b/drivers/block/drbd/Kconfig
+index b907b07468bb..615516941fb7 100644
+--- a/drivers/block/drbd/Kconfig
++++ b/drivers/block/drbd/Kconfig
+@@ -72,3 +72,30 @@ config DRBD_FAULT_INJECTION
+ 		echo 5 > /sys/module/drbd/parameters/fault_rate
  
-+#include <linux/types.h>
+ 	  If unsure, say N.
++
++config BLK_DEV_DRBD_TCP
++	tristate "DRBD TCP transport"
++	depends on BLK_DEV_DRBD
++	default BLK_DEV_DRBD
++	help
++
++	  TCP transport support for DRBD. This is the standard transport
++	  for DRBD replication over TCP/IP networks.
++
++	  If unsure, say Y.
++
++config BLK_DEV_DRBD_TCP_TLS
++	bool "DRBD TCP transport TLS encryption support"
++	depends on BLK_DEV_DRBD_TCP
++	select NET_HANDSHAKE
++	select KEYS
++	select TLS
++	help
++	  Enables TLS encryption for DRBD replication over the TCP
++	  transport, using the netlink handshake API. Without it, the TCP
++	  transport refuses connections configured for TLS.
++
++	  The TLS handshake daemon is available at
++	  https://github.com/oracle/ktls-utils.
++
++	  If unsure, say N.
+diff --git a/drivers/block/drbd/Makefile b/drivers/block/drbd/Makefile
+index d4fa578325dc..9f05f74e619c 100644
+--- a/drivers/block/drbd/Makefile
++++ b/drivers/block/drbd/Makefile
+@@ -8,3 +8,4 @@ drbd-y += drbd_transport.o
+ drbd-$(CONFIG_DEBUG_FS) += drbd_debugfs.o
+ 
+ obj-$(CONFIG_BLK_DEV_DRBD)     += drbd.o
++obj-$(CONFIG_BLK_DEV_DRBD_TCP) += drbd_transport_tcp.o
+diff --git a/drivers/block/drbd/drbd_transport_tcp.c b/drivers/block/drbd/drbd_transport_tcp.c
+new file mode 100644
+index 000000000000..2c77c48bfa49
+--- /dev/null
++++ b/drivers/block/drbd/drbd_transport_tcp.c
+@@ -0,0 +1,1828 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * Copyright (C) 2014, LINBIT HA-Solutions GmbH.
++ */
++
++#include <linux/module.h>
++#include <linux/errno.h>
++#include <linux/socket.h>
++#include <linux/pkt_sched.h>
++#include <linux/sched/signal.h>
++#include <linux/net.h>
++#include <linux/skbuff.h>
++#include <linux/file.h>
++#include <linux/tcp.h>
++#include <linux/highmem.h>
++#include <linux/bio.h>
 +#include <linux/drbd.h>
++#include "drbd_nl_types.h"
++#include "drbd_config.h"
++#include <linux/tls.h>
++#include <net/tcp.h>
++#include <net/handshake.h>
++#include <net/tls.h>
++#include <net/tls_prot.h>
++#include "drbd_protocol.h"
++#include "drbd_transport.h"
 +
- enum drbd_packet {
- 	/* receiver (data socket) */
- 	P_DATA		      = 0x00,
-@@ -28,12 +31,12 @@ enum drbd_packet {
- 	P_AUTH_RESPONSE	      = 0x11,
- 	P_STATE_CHG_REQ	      = 0x12,
- 
--	/* (meta socket) */
-+	/* asender (meta socket */
- 	P_PING		      = 0x13,
- 	P_PING_ACK	      = 0x14,
- 	P_RECV_ACK	      = 0x15, /* Used in protocol B */
- 	P_WRITE_ACK	      = 0x16, /* Used in protocol C */
--	P_RS_WRITE_ACK	      = 0x17, /* Is a P_WRITE_ACK, additionally call set_in_sync(). */
-+	P_RS_WRITE_ACK	      = 0x17, /* Write ack for resync reply. */
- 	P_SUPERSEDED	      = 0x18, /* Used in proto C, two-primaries conflict detection */
- 	P_NEG_ACK	      = 0x19, /* Sent if local disk is unusable */
- 	P_NEG_DREPLY	      = 0x1a, /* Local disk is broken... */
-@@ -45,7 +48,7 @@ enum drbd_packet {
- 
- 	P_OV_REQUEST	      = 0x1e, /* data socket */
- 	P_OV_REPLY	      = 0x1f,
--	P_OV_RESULT	      = 0x20, /* meta socket */
-+	P_OV_RESULT	      = 0x20, /* meta sock: Protocol < 122 version of P_OV_RESULT_ID */
- 	P_CSUM_RS_REQUEST     = 0x21, /* data socket */
- 	P_RS_IS_IN_SYNC	      = 0x22, /* meta socket */
- 	P_SYNC_PARAM89	      = 0x23, /* data socket, protocol version 89 replacement for P_SYNC_PARAM */
-@@ -55,32 +58,84 @@ enum drbd_packet {
- 	P_DELAY_PROBE         = 0x27, /* is used on BOTH sockets */
- 	P_OUT_OF_SYNC         = 0x28, /* Mark as out of sync (Outrunning), data socket */
- 	P_RS_CANCEL           = 0x29, /* meta: Used to cancel RS_DATA_REQUEST packet by SyncSource */
--	P_CONN_ST_CHG_REQ     = 0x2a, /* data sock: Connection wide state request */
--	P_CONN_ST_CHG_REPLY   = 0x2b, /* meta sock: Connection side state req reply */
--	P_RETRY_WRITE	      = 0x2c, /* Protocol C: retry conflicting write request */
-+	P_CONN_ST_CHG_REQ     = 0x2a, /* data sock: state change request */
-+	P_CONN_ST_CHG_REPLY   = 0x2b, /* meta sock: state change reply */
-+	P_RETRY_WRITE	      = 0x2c, /* meta sock: Protocol C: peer did not process this write, retry it.
-+				       * Was the 8.4 two-primaries conflict retry; reused, gated by
-+				       * DRBD_FF_WRITE_POSTPONE, as the answer to a write a sync
-+				       * target can not secure toward its sync source. */
- 	P_PROTOCOL_UPDATE     = 0x2d, /* data sock: is used in established connections */
--        /* 0x2e to 0x30 reserved, used in drbd 9 */
-+	P_TWOPC_PREPARE       = 0x2e, /* data sock: prepare state change */
-+	P_TWOPC_ABORT         = 0x2f, /* data sock: abort state change */
 +
-+	P_DAGTAG	      = 0x30, /* data sock: set the current dagtag */
- 
--	/* REQ_OP_DISCARD. We used "discard" in different contexts before,
--	 * which is why I chose TRIM here, to disambiguate. */
-+	/*
-+	 * REQ_DISCARD. We used "discard" in different contexts before,
-+	 * which is why I chose TRIM here, to disambiguate.
-+	 */
- 	P_TRIM                = 0x31,
- 
- 	/* Only use these two if both support FF_THIN_RESYNC */
- 	P_RS_THIN_REQ         = 0x32, /* Request a block for resync or reply P_RS_DEALLOCATED */
--	P_RS_DEALLOCATED      = 0x33, /* Contains only zeros on sync source node */
-+	P_RS_DEALLOCATED      = 0x33, /* Protocol < 122 version of P_RS_DEALLOCATED_ID */
- 
--	/* REQ_WRITE_SAME.
-+	/*
-+	 * REQ_WRITE_SAME.
- 	 * On a receiving side without REQ_WRITE_SAME,
--	 * we may fall back to an opencoded loop instead. */
-+	 * we may fall back to an opencoded loop instead.
-+	 */
- 	P_WSAME               = 0x34,
--
--	/* 0x35 already claimed in DRBD 9 */
-+	P_TWOPC_PREP_RSZ      = 0x35, /* PREPARE a 2PC resize operation*/
- 	P_ZEROES              = 0x36, /* data sock: zero-out, WRITE_ZEROES */
- 
--	/* 0x40 .. 0x48 already claimed in DRBD 9 */
-+	/*
-+	 * place new packets for both 8.4 and 9 here,
-+	 * place new packets for 9-only in the next gap.
-+	 */
++MODULE_AUTHOR("Philipp Reisner <philipp.reisner@linbit.com>");
++MODULE_AUTHOR("Lars Ellenberg <lars.ellenberg@linbit.com>");
++MODULE_AUTHOR("Roland Kammerer <roland.kammerer@linbit.com>");
++MODULE_DESCRIPTION("TCP (SDP, SSOCKS) transport layer for DRBD");
++MODULE_LICENSE("GPL");
++MODULE_VERSION(REL_VERSION);
 +
-+	P_PEER_ACK            = 0x40, /* meta sock: tell which nodes have acked a request */
-+	P_PEERS_IN_SYNC       = 0x41, /* data sock: Mark area as in sync */
++/* TCP keepalive has proven to be vital in many deployment scenarios.
++ * Without keepalive, after a device has seen a sufficiently long period of
++ * idle time, packets on our "bulk data" socket may be dropped because an
++ * overly "smart" network infrastructure decided that TCP session was stale.
++ * Note that we don't try to use this to detect "broken" tcp sessions here,
++ * these will still be handled by the DRBD effective network timeout via
++ * timeout / ko-count settings.
++ * We use this to try to keep "idle" TCP sessions "alive".
++ * Default to send a probe every 23 seconds.
++ */
++#define DRBD_KEEP_IDLE	23
++#define DRBD_KEEP_INTVL 23
++#define DRBD_KEEP_CNT	9
++static unsigned int drbd_keepcnt = DRBD_KEEP_CNT;
++module_param_named(keepcnt, drbd_keepcnt, uint, 0664);
++MODULE_PARM_DESC(keepcnt, "see tcp(7) tcp_keepalive_probes; set TCP_KEEPCNT for data sockets; default: 9");
++static unsigned int drbd_keepidle = DRBD_KEEP_IDLE;
++module_param_named(keepidle, drbd_keepidle, uint, 0664);
++MODULE_PARM_DESC(keepidle, "see tcp(7) tcp_keepalive_time; set TCP_KEEPIDLE for data sockets; default: 23s");
++static unsigned int drbd_keepintvl = DRBD_KEEP_INTVL;
++module_param_named(keepintvl, drbd_keepintvl, uint, 0664);
++MODULE_PARM_DESC(keepintvl, "see tcp(7) tcp_keepalive_intvl; set TCP_KEEPINTVL for data sockets; default: 23s");
 +
-+	P_UUIDS110	      = 0x42, /* data socket */
-+	P_PEER_DAGTAG         = 0x43, /* data socket, used to trigger reconciliation resync */
-+	P_CURRENT_UUID	      = 0x44, /* data socket */
++static struct workqueue_struct *dtt_csocket_recv;
 +
-+	P_TWOPC_YES           = 0x45, /* meta sock: allow two-phase commit */
-+	P_TWOPC_NO            = 0x46, /* meta sock: reject two-phase commit */
-+	P_TWOPC_COMMIT        = 0x47, /* data sock: commit state change */
-+	P_TWOPC_RETRY         = 0x48, /* meta sock: retry two-phase commit */
-+
-+	P_CONFIRM_STABLE      = 0x49, /* meta sock: similar to an unsolicited partial barrier ack */
-+	/* protocol version 115,
-+	 * meta: cancel RS_DATA_REQUEST packet if already Ahead again,
-+	 *       tell peer to stop sending resync requests...
-+	 */
-+	P_RS_CANCEL_AHEAD     = 0x4a,
-+	P_DISCONNECT          = 0x4b, /* data sock: Disconnect and stop connection attempts */
-+
-+	P_RS_DAGTAG_REQ       = 0x4c, /* data sock: Request a block for resync, with dagtag dependency */
-+	P_RS_CSUM_DAGTAG_REQ  = 0x4d, /* data sock: Request a block for resync if checksum differs, with dagtag dependency */
-+	P_RS_THIN_DAGTAG_REQ  = 0x4e, /* data sock: Request a block for resync or reply P_RS_DEALLOCATED, with dagtag dependency */
-+	P_OV_DAGTAG_REQ       = 0x4f, /* data sock: Request a checksum for online verify, with dagtag dependency */
-+	P_OV_DAGTAG_REPLY     = 0x50, /* data sock: Reply with a checksum for online verify, with dagtag dependency */
-+
-+	P_WRITE_ACK_IN_SYNC   = 0x51, /* meta sock: Application write ack setting bits in sync. */
-+	P_RS_NEG_ACK          = 0x52, /* meta sock: Local disk is unusable writing resync reply. */
-+	P_OV_RESULT_ID        = 0x53, /* meta sock: Online verify result with block ID. */
-+	P_RS_DEALLOCATED_ID   = 0x54, /* data sock: Contains only zeros on sync source node. */
-+
-+	P_FLUSH_REQUESTS      = 0x55, /* data sock: Flush prior requests then send ack and/or forward */
-+	P_FLUSH_FORWARD       = 0x56, /* meta sock: Send ack after sending P_OUT_OF_SYNC for prior P_PEER_ACK */
-+	P_FLUSH_REQUESTS_ACK  = 0x57, /* data sock: Response to initiator of P_FLUSH_REQUESTS */
-+	P_ENABLE_REPLICATION_NEXT = 0x58, /* data sock: whether to start replication on next resync start */
-+	P_ENABLE_REPLICATION  = 0x59, /* data sock: enable or disable replication during resync */
-+
-+	P_RS_DAGTAG_WAIT_REQ  = 0x5a, /* data sock: Wait for the dagtag dependency only, answer without data */
-+	P_RS_DAGTAG_REACHED   = 0x5b, /* meta sock: The dagtag dependency of this request is reached. */
-+	P_RS_DAGTAG_UNREACHABLE = 0x5c, /* meta sock: Can not reach the dagtag this request depends on. */
- 
- 	P_MAY_IGNORE	      = 0x100, /* Flag to test if (cmd > P_MAY_IGNORE) ... */
--	P_MAX_OPT_CMD	      = 0x101,
- 
- 	/* special command ids for handshake */
- 
-@@ -105,24 +160,24 @@ enum drbd_packet {
-  * regardless of 32 or 64 bit arch!
-  */
- struct p_header80 {
--	u32	  magic;
--	u16	  command;
--	u16	  length;	/* bytes of data after this header */
-+	uint32_t magic;
-+	uint16_t command;
-+	uint16_t length;	/* bytes of data after this header */
- } __packed;
- 
- /* Header for big packets, Used for data packets exceeding 64kB */
- struct p_header95 {
--	u16	  magic;	/* use DRBD_MAGIC_BIG here */
--	u16	  command;
--	u32	  length;
-+	uint16_t magic;	/* use DRBD_MAGIC_BIG here */
-+	uint16_t command;
-+	uint32_t length;
- } __packed;
- 
- struct p_header100 {
--	u32	  magic;
--	u16	  volume;
--	u16	  command;
--	u32	  length;
--	u32	  pad;
-+	uint32_t magic;
-+	uint16_t volume;
-+	uint16_t command;
-+	uint32_t length;
-+	uint32_t pad;
- } __packed;
- 
- /* These defines must not be changed without changing the protocol version.
-@@ -132,10 +187,10 @@ struct p_header100 {
- #define DP_HARDBARRIER	      1 /* no longer used */
- #define DP_RW_SYNC	      2 /* equals REQ_SYNC    */
- #define DP_MAY_SET_IN_SYNC    4
--#define DP_UNPLUG             8 /* not used anymore   */
-+#define DP_UNPLUG             8 /* equals REQ_UNPLUG (compat) */
- #define DP_FUA               16 /* equals REQ_FUA     */
- #define DP_FLUSH             32 /* equals REQ_PREFLUSH   */
--#define DP_DISCARD           64 /* equals REQ_OP_DISCARD */
-+#define DP_DISCARD           64 /* equals REQ_DISCARD */
- #define DP_SEND_RECEIVE_ACK 128 /* This is a proto B write request */
- #define DP_SEND_WRITE_ACK   256 /* This is a proto C write request */
- #define DP_WSAME            512 /* equiv. REQ_WRITE_SAME */
-@@ -147,58 +202,114 @@ struct p_header100 {
-  */
- 
- struct p_data {
--	u64	    sector;    /* 64 bits sector number */
--	u64	    block_id;  /* to identify the request in protocol B&C */
--	u32	    seq_num;
--	u32	    dp_flags;
-+	uint64_t sector;    /* 64 bits sector number */
-+	uint64_t block_id;  /* to identify the request in protocol B&C */
-+	uint32_t seq_num;
-+	uint32_t dp_flags;
- } __packed;
- 
- struct p_trim {
- 	struct p_data p_data;
--	u32	    size;	/* == bio->bi_size */
-+	uint32_t size;	/* == bio->bi_size */
- } __packed;
- 
- struct p_wsame {
- 	struct p_data p_data;
--	u32           size;     /* == bio->bi_size */
-+	uint32_t size;     /* == bio->bi_size */
- } __packed;
- 
- /*
-- * commands which share a struct:
-- *  p_block_ack:
-- *   P_RECV_ACK (proto B), P_WRITE_ACK (proto C),
-+ * struct p_block_ack shared by commands:
-+ *   P_RECV_ACK (proto B)
-+ *   P_WRITE_ACK (proto C),
-+ *   P_WRITE_ACK_IN_SYNC,
-  *   P_SUPERSEDED (proto C, two-primaries conflict detection)
-- *  p_block_req:
-- *   P_DATA_REQUEST, P_RS_DATA_REQUEST
-+ *   P_RS_WRITE_ACK
-+ *   P_NEG_ACK
-+ *   P_NEG_DREPLY
-+ *   P_NEG_RS_DREPLY
-+ *   P_RS_NEG_ACK
-+ *   P_OV_RESULT
-+ *   P_RS_IS_IN_SYNC
-+ *   P_RS_CANCEL
-+ *   P_RS_DEALLOCATED_ID
-+ *   P_RS_CANCEL_AHEAD
-+ *   P_RS_DAGTAG_REACHED
-+ *   P_RS_DAGTAG_UNREACHABLE
-  */
- struct p_block_ack {
--	u64	    sector;
--	u64	    block_id;
--	u32	    blksize;
--	u32	    seq_num;
-+	uint64_t sector;
-+	uint64_t block_id;
-+	uint32_t blksize;
-+	uint32_t seq_num;
- } __packed;
- 
-+/* For P_OV_RESULT_ID. */
-+struct p_ov_result {
-+	uint64_t sector;
-+	uint64_t block_id;
-+	uint32_t blksize;
-+	uint32_t seq_num;
-+	uint32_t result;
-+	uint32_t pad;
-+} __packed;
-+
-+enum ov_result {
-+	OV_RESULT_SKIP = 0,
-+	OV_RESULT_IN_SYNC = 1,
-+	OV_RESULT_OUT_OF_SYNC = 2,
++struct buffer {
++	void *base;
++	void *pos;
 +};
 +
-+struct p_block_req_common {
-+	uint64_t sector;
-+	uint64_t block_id;
-+	uint32_t blksize;
-+} __packed;
++#define DTT_CONNECTING 1
++#define DTT_DATA_READY_ARMED 2
 +
-+/*
-+ * struct p_block_req shared by commands:
-+ *   P_DATA_REQUEST
-+ *   P_RS_DATA_REQUEST
-+ *   P_OV_REQUEST
-+ *   P_OV_REPLY
-+ *   P_CSUM_RS_REQUEST
-+ *   P_RS_THIN_REQ
-+ */
- struct p_block_req {
--	u64 sector;
--	u64 block_id;
--	u32 blksize;
--	u32 pad;	/* to multiple of 8 Byte */
-+	/* Allow fields to be addressed directly or via req_common. */
-+	union {
-+		struct {
-+			uint64_t sector;
-+			uint64_t block_id;
-+			uint32_t blksize;
-+		} __packed;
-+		struct p_block_req_common req_common;
++struct drbd_tcp_transport {
++	struct drbd_transport transport; /* Must be first! */
++	spinlock_t control_recv_lock;
++	unsigned long flags;
++	struct socket *stream[2];
++	struct buffer rbuf[2];
++	struct timer_list control_timer;
++	struct work_struct control_data_ready_work;
++	void (*original_control_sk_state_change)(struct sock *sk);
++	void (*original_control_sk_data_ready)(struct sock *sk);
++	wait_queue_head_t wait; /* woken if a connection came in on any of our paths */
++};
++
++struct dtt_listener {
++	struct drbd_listener listener;
++	void (*original_sk_state_change)(struct sock *sk);
++	struct socket *s_listen;
++};
++
++/* Since each path might have a different local IP address, each
++   path might need its own listener. Therefore the drbd_waiter object
++   is embedded into the dtt_path and _not_ the dtt_waiter. */
++
++struct dtt_socket_container {
++	struct list_head list;
++	struct socket *socket;
++};
++
++struct dtt_path {
++	struct drbd_path path;
++
++	struct list_head sockets; /* sockets passed to me by other receiver threads */
++};
++
++
++static int dtt_init(struct drbd_transport *transport);
++static void dtt_free(struct drbd_transport *transport, enum drbd_tr_free_op free_op);
++static void dtt_socket_free(struct socket **sock);
++static int dtt_init_listener(struct drbd_transport *transport, const struct sockaddr *addr,
++			     struct net *net, struct drbd_listener *drbd_listener);
++static void dtt_destroy_listener(struct drbd_listener *generic_listener);
++static int dtt_prepare_connect(struct drbd_transport *transport);
++static int dtt_connect(struct drbd_transport *transport);
++static void dtt_finish_connect(struct drbd_transport *transport);
++static int dtt_recv(struct drbd_transport *transport, enum drbd_stream stream, void **buf, size_t size, int flags);
++static int dtt_recv_bio(struct drbd_transport *transport, struct bio_list *bios, size_t size,
++			unsigned int *misalign_bits);
++static void dtt_stats(struct drbd_transport *transport, struct drbd_transport_stats *stats);
++static int dtt_net_conf_change(struct drbd_transport *transport,
++			       struct drbd_net_conf *new_net_conf);
++static void dtt_set_rcvtimeo(struct drbd_transport *transport, enum drbd_stream stream, long timeout);
++static long dtt_get_rcvtimeo(struct drbd_transport *transport, enum drbd_stream stream);
++static int dtt_send_page(struct drbd_transport *transport, enum drbd_stream, struct page *page,
++		int offset, size_t size, unsigned int msg_flags);
++static int dtt_send_bio(struct drbd_transport *, struct bio *bio, unsigned int msg_flags);
++static bool dtt_stream_ok(struct drbd_transport *transport, enum drbd_stream stream);
++static bool dtt_hint(struct drbd_transport *transport, enum drbd_stream stream, enum drbd_tr_hints hint);
++static void dtt_debugfs_show(struct drbd_transport *transport, struct seq_file *m);
++static void dtt_update_congested(struct drbd_tcp_transport *tcp_transport);
++static int dtt_add_path(struct drbd_path *path);
++static bool dtt_may_remove_path(struct drbd_path *);
++static void dtt_remove_path(struct drbd_path *);
++static void dtt_control_timer_fn(struct timer_list *t);
++
++static struct drbd_transport_class tcp_transport_class = {
++	.name = "tcp",
++	.instance_size = sizeof(struct drbd_tcp_transport),
++	.path_instance_size = sizeof(struct dtt_path),
++	.listener_instance_size = sizeof(struct dtt_listener),
++	.drain_before_close = true,
++	.ops = (struct drbd_transport_ops) {
++		.init = dtt_init,
++		.free = dtt_free,
++		.init_listener = dtt_init_listener,
++		.release_listener = dtt_destroy_listener,
++		.prepare_connect = dtt_prepare_connect,
++		.connect = dtt_connect,
++		.finish_connect = dtt_finish_connect,
++		.recv = dtt_recv,
++		.recv_bio = dtt_recv_bio,
++		.stats = dtt_stats,
++		.net_conf_change = dtt_net_conf_change,
++		.set_rcvtimeo = dtt_set_rcvtimeo,
++		.get_rcvtimeo = dtt_get_rcvtimeo,
++		.send_page = dtt_send_page,
++		.send_bio = dtt_send_bio,
++		.stream_ok = dtt_stream_ok,
++		.hint = dtt_hint,
++		.debugfs_show = dtt_debugfs_show,
++		.add_path = dtt_add_path,
++		.may_remove_path = dtt_may_remove_path,
++		.remove_path = dtt_remove_path,
++	},
++	.module = THIS_MODULE,
++	.list = LIST_HEAD_INIT(tcp_transport_class.list),
++};
++
++static int dtt_init(struct drbd_transport *transport)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	enum drbd_stream i;
++
++	spin_lock_init(&tcp_transport->control_recv_lock);
++	init_waitqueue_head(&tcp_transport->wait);
++	tcp_transport->transport.class = &tcp_transport_class;
++	for (i = DATA_STREAM; i <= CONTROL_STREAM ; i++) {
++		void *buffer = (void *)__get_free_page(GFP_KERNEL);
++		if (!buffer)
++			goto fail;
++		tcp_transport->rbuf[i].base = buffer;
++		tcp_transport->rbuf[i].pos = buffer;
++	}
++	timer_setup(&tcp_transport->control_timer, dtt_control_timer_fn, 0);
++
++	return 0;
++fail:
++	free_page((unsigned long)tcp_transport->rbuf[0].base);
++	return -ENOMEM;
++}
++
++static void dtt_free(struct drbd_transport *transport, enum drbd_tr_free_op free_op)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	enum drbd_stream i;
++	struct drbd_path *drbd_path;
++	/* free the socket specific stuff,
++	 * mutexes are handled by caller */
++
++	clear_bit(DTT_DATA_READY_ARMED, &tcp_transport->flags);
++
++	if (tcp_transport->control_data_ready_work.func) {
++		cancel_work_sync(&tcp_transport->control_data_ready_work);
++		tcp_transport->control_data_ready_work.func = NULL;
++	}
++
++	if (tcp_transport->stream[CONTROL_STREAM] &&
++	    tcp_transport->original_control_sk_state_change) {
++		write_lock_bh(&tcp_transport->stream[CONTROL_STREAM]->sk->sk_callback_lock);
++		tcp_transport->stream[CONTROL_STREAM]->sk->sk_state_change =
++			tcp_transport->original_control_sk_state_change;
++		write_unlock_bh(&tcp_transport->stream[CONTROL_STREAM]->sk->sk_callback_lock);
++	}
++
++	synchronize_rcu();
++	for (i = DATA_STREAM; i <= CONTROL_STREAM; i++) {
++		dtt_socket_free(&tcp_transport->stream[i]);
++	}
++
++	list_for_each_entry(drbd_path, &transport->paths, list) {
++		bool was_established = test_and_clear_bit(TR_ESTABLISHED, &drbd_path->flags);
++
++		if (free_op == CLOSE_CONNECTION && was_established)
++			drbd_path_event(transport, drbd_path);
++	}
++
++	timer_delete_sync(&tcp_transport->control_timer);
++
++	if (free_op == DESTROY_TRANSPORT) {
++		for (i = DATA_STREAM; i <= CONTROL_STREAM; i++) {
++			free_page((unsigned long)tcp_transport->rbuf[i].base);
++			tcp_transport->rbuf[i].base = NULL;
++		}
++	}
++}
++
++static int _dtt_send(struct drbd_tcp_transport *tcp_transport, struct socket *socket,
++		      void *buf, size_t size, unsigned msg_flags)
++{
++	struct kvec iov;
++	struct msghdr msg;
++	int rv, sent = 0;
++
++	iov.iov_base = buf;
++	iov.iov_len  = size;
++
++	msg.msg_name       = NULL;
++	msg.msg_namelen    = 0;
++	msg.msg_control    = NULL;
++	msg.msg_controllen = 0;
++	msg.msg_flags      = msg_flags | MSG_NOSIGNAL;
++
++	do {
++		rv = kernel_sendmsg(socket, &msg, &iov, 1, iov.iov_len);
++		if (rv == -EAGAIN) {
++			struct drbd_transport *transport = &tcp_transport->transport;
++			enum drbd_stream stream =
++				tcp_transport->stream[DATA_STREAM] == socket ?
++					DATA_STREAM : CONTROL_STREAM;
++
++			if (drbd_stream_send_timed_out(transport, stream))
++				break;
++			else
++				continue;
++		}
++		if (rv < 0)
++			break;
++		sent += rv;
++		iov.iov_base += rv;
++		iov.iov_len  -= rv;
++	} while (sent < size);
++
++	if (rv <= 0)
++		return rv;
++
++	return sent;
++}
++
++static int dtt_recv_short(struct socket *socket, void *buf, size_t size, int flags)
++{
++	struct kvec iov = {
++		.iov_base = buf,
++		.iov_len = size,
 +	};
-+	uint32_t pad;	/* to multiple of 8 Byte */
- } __packed;
- 
- /*
-- * commands with their own struct for additional fields:
-- *   P_CONNECTION_FEATURES
-- *   P_BARRIER
-- *   P_BARRIER_ACK
-- *   P_SYNC_PARAM
-- *   ReportParams
-+ * struct p_rs_req shared by commands:
-+ *   P_RS_DAGTAG_REQ
-+ *   P_RS_CSUM_DAGTAG_REQ
-+ *   P_RS_THIN_DAGTAG_REQ
-+ *   P_OV_DAGTAG_REQ
-+ *   P_OV_DAGTAG_REPLY
-+ *   P_RS_DAGTAG_WAIT_REQ
-  */
-+struct p_rs_req {
-+	struct p_block_req_common req_common;
-+	uint32_t dagtag_node_id;
-+	uint64_t dagtag;
-+} __packed;
- 
- /* supports TRIM/DISCARD on the "wire" protocol */
- #define DRBD_FF_TRIM 1
- 
--/* Detect all-zeros during resync, and rather TRIM/UNMAP/DISCARD those blocks
-- * instead of fully allocate a supposedly thin volume on initial resync */
-+/*
-+ * Detect all-zeros during resync, and rather TRIM/UNMAP/DISCARD those blocks
-+ * instead of fully allocate a supposedly thin volume on initial resync
-+ */
- #define DRBD_FF_THIN_RESYNC 2
- 
- /* supports REQ_WRITE_SAME on the "wire" protocol.
-@@ -247,54 +358,131 @@ struct p_block_req {
-  */
- #define DRBD_FF_WZEROES 8
- 
-+/* Supports synchronization of application and resync IO using data generation
-+ * tags (dagtags). See Documentation/application-resync-synchronization.rst for
-+ * details.
-+ */
-+#define DRBD_FF_RESYNC_DAGTAG 16
-+
-+/* V2 of p_twopc_request has a 32 bit flag field and the two fields for node
-+ * Ids are reduced to 8 bit instead of 32 bits.
-+ *
-+ * The flag TWOPC_HAS_RECHABLE indicates that in the commit phase
-+ * (P_TWOPC_COMMIT) the reachable_nodes mask is set.
-+ *
-+ * The old behavior sends the primary_nodes mask, mask, and val in
-+ * phase 2 (P_TWOPC_COMMIT), where mask and val are the same values as
-+ * in phase 1 (P_TWOPC_PREPARE).
-+ */
-+#define DRBD_FF_2PC_V2 32
-+
-+/* Starting with drbd-9.1.15, a node with a backing disk sends the new
-+ * current-uuid also to diskless nodes when the initial resync is
-+ * skipped.
-+ *
-+ * The peer needs to know about this detail to apply the necessary
-+ * strictness regarding downgrading its view of the partner's disk
-+ * state.
-+ */
-+#define DRBD_FF_RS_SKIP_UUID 64
-+
-+/* Support for resync_without_replication.
-+ */
-+#define DRBD_FF_RESYNC_WITHOUT_REPLICATION 128
-+
-+/* Support for bitmap block size != 4k. If you connect peers with
-+ * different bitmap block sizes, the resync becomes more
-+ * interesting, and we need to communicate the bitmap block size.
-+ */
-+#define DRBD_FF_BM_BLOCK_SHIFT 256
-+
-+/* Starting with drbd-9.2.19 a new kind of reconciliation resync
-+ */
-+#define DRBD_FF_RECONCILE_RECONNECT 512
-+
-+/* A sync target that received a write in a range the sync source is still to
-+ * resync does not acknowledge it before the source holds that write too: it
-+ * asks with P_RS_DAGTAG_WAIT_REQ, naming the write's position in the writer's
-+ * stream, and the source answers P_RS_DAGTAG_REACHED once its copy of that
-+ * stream has reached the position, or P_RS_DAGTAG_UNREACHABLE when it has
-+ * lost the writer. In the unreachable case the target answers the writer
-+ * P_RETRY_WRITE: the write counts as not processed, and the writer retries
-+ * it once the cluster can order it again.
-+ *
-+ * Advertised by every node that answers dagtag wait requests, serves a resync
-+ * to a target that secures its writes, sends the postpone answer, and retries
-+ * a postponed write.
-+ */
-+#define DRBD_FF_WRITE_POSTPONE 1024
-+
-+/* A split brain detected while a node attaches its disk is handled like one
-+ * detected on connect: by the after-sb-* policies, or by the attaching node's
-+ * discard-my-data.  Without this, the attach fails.  Both nodes must agree on
-+ * it, as only one of them would otherwise commit to a resync direction.
-+ */
-+#define DRBD_FF_ATTACH_SPLIT_BRAIN 2048
-+
-+/* An equal-UUID reconciliation resync between a Primary and a Secondary is
-+ * sourced from the Primary when the Primary is UpToDate, whichever side holds
-+ * the out-of-sync bits. Both sides must apply that rule, or both may choose
-+ * SyncSource.
-+ */
-+#define DRBD_FF_RECONCILE_PRIMARY 4096
- 
- struct p_connection_features {
--	u32 protocol_min;
--	u32 feature_flags;
--	u32 protocol_max;
-+	uint32_t protocol_min;
-+	uint32_t feature_flags;
-+	uint32_t protocol_max;
-+	uint32_t sender_node_id;
-+	uint32_t receiver_node_id;
- 
- 	/* should be more than enough for future enhancements
- 	 * for now, feature_flags and the reserved array shall be zero.
- 	 */
- 
--	u32 _pad;
--	u64 reserved[7];
-+	uint32_t _pad;
-+	uint64_t reserved[6];
- } __packed;
- 
- struct p_barrier {
--	u32 barrier;	/* barrier number _handle_ only */
--	u32 pad;	/* to multiple of 8 Byte */
-+	uint32_t barrier;	/* barrier number _handle_ only */
-+	uint32_t pad;	/* to multiple of 8 Byte */
- } __packed;
- 
- struct p_barrier_ack {
--	u32 barrier;
--	u32 set_size;
-+	uint32_t barrier;
-+	uint32_t set_size;
-+} __packed;
-+
-+struct p_confirm_stable {
-+	uint64_t oldest_block_id;
-+	uint64_t youngest_block_id;
-+	uint32_t set_size;
-+	uint32_t pad; /* to multiple of 8 Byte */
- } __packed;
- 
- struct p_rs_param {
--	u32 resync_rate;
-+	uint32_t resync_rate;
- 
- 	      /* Since protocol version 88 and higher. */
- 	char verify_alg[];
- } __packed;
- 
- struct p_rs_param_89 {
--	u32 resync_rate;
-+	uint32_t resync_rate;
- 	/* protocol version 89: */
- 	char verify_alg[SHARED_SECRET_MAX];
- 	char csums_alg[SHARED_SECRET_MAX];
- } __packed;
- 
- struct p_rs_param_95 {
--	u32 resync_rate;
--	struct_group(algs,
--		char verify_alg[SHARED_SECRET_MAX];
--		char csums_alg[SHARED_SECRET_MAX];
--	);
--	u32 c_plan_ahead;
--	u32 c_delay_target;
--	u32 c_fill_target;
--	u32 c_max_rate;
-+	uint32_t resync_rate;
-+	char verify_alg[SHARED_SECRET_MAX];
-+	char csums_alg[SHARED_SECRET_MAX];
-+	uint32_t c_plan_ahead;
-+	uint32_t c_delay_target;
-+	uint32_t c_fill_target;
-+	uint32_t c_max_rate;
- } __packed;
- 
- enum drbd_conn_flags {
-@@ -303,35 +491,90 @@ enum drbd_conn_flags {
- };
- 
- struct p_protocol {
--	u32 protocol;
--	u32 after_sb_0p;
--	u32 after_sb_1p;
--	u32 after_sb_2p;
--	u32 conn_flags;
--	u32 two_primaries;
-+	uint32_t protocol;
-+	uint32_t after_sb_0p;
-+	uint32_t after_sb_1p;
-+	uint32_t after_sb_2p;
-+	uint32_t conn_flags;
-+	uint32_t two_primaries;
- 
- 	/* Since protocol version 87 and higher. */
- 	char integrity_alg[];
- 
- } __packed;
- 
-+#define UUID_FLAG_DISCARD_MY_DATA     ((u64)1 << 0)
-+#define UUID_FLAG_CRASHED_PRIMARY     ((u64)1 << 1)
-+#define UUID_FLAG_INCONSISTENT        ((u64)1 << 2)
-+#define UUID_FLAG_SKIP_INITIAL_SYNC   ((u64)1 << 3)
-+
-+#define UUID_FLAG_MASK_COMPAT_84 \
-+	(UUID_FLAG_DISCARD_MY_DATA|\
-+	 UUID_FLAG_CRASHED_PRIMARY|\
-+	 UUID_FLAG_INCONSISTENT|\
-+	 UUID_FLAG_SKIP_INITIAL_SYNC)
-+
-+#define UUID_FLAG_NEW_DATAGEN         ((u64)1 << 4)
-+#define UUID_FLAG_STABLE              ((u64)1 << 5)
-+#define UUID_FLAG_GOT_STABLE          ((u64)1 << 6) /* send UUIDs */
-+#define UUID_FLAG_RESYNC              ((u64)1 << 7) /* compare UUIDs and eventually start resync */
-+#define UUID_FLAG_RECONNECT           ((u64)1 << 8)
-+#define UUID_FLAG_DISKLESS_PRIMARY    ((u64)1 << 9) /* Use with UUID_FLAG_RESYNC if a diskless primary is the reason */
-+#define UUID_FLAG_PRIMARY_LOST_QUORUM ((u64)1 << 10)
-+#define UUID_FLAG_SYNC_TARGET         ((u64)1 << 11) /* currently L_SYNC_TARGET to some peer */
-+#define UUID_FLAG_HAS_UNALLOC         ((u64)1 << 12) /* highest byte contains index of not allocated bitmap uuid */
-+#define UUID_FLAG_BITMAP_AUTHORITATIVE ((u64)1 << 13) /* my out-of-sync bits toward you were set for blocks you lack, not by a resync or an invalidate; protocol 125 */
-+
-+#define UUID_FLAG_UNALLOC_SHIFT       56
-+#define UUID_FLAG_UNALLOC_MASK        ((u64)0xff << UUID_FLAG_UNALLOC_SHIFT)
-+
- struct p_uuids {
--	u64 uuid[UI_EXTENDED_SIZE];
-+	uint64_t current_uuid;
-+	uint64_t bitmap_uuid;
-+	uint64_t history_uuids[HISTORY_UUIDS_V08];
-+	uint64_t dirty_bits;
-+	uint64_t uuid_flags;
-+} __packed;
-+
-+struct p_uuids110 {
-+	uint64_t current_uuid;
-+	uint64_t dirty_bits;
-+	uint64_t uuid_flags;
-+	uint64_t node_mask;
-+	/* weak_nodes when UUID_FLAG_NEW_DATAGEN is set;
-+	 * authoritative nodes when UUID_FLAG_STABLE not set
-+	 */
-+
-+	uint64_t bitmap_uuids_mask; /* non zero bitmap UUIDS for these nodes */
-+	uint64_t other_uuids[];
-+	/* the first hweight(bitmap_uuids_mask) slots carry bitmap uuids.
-+	 * The node with the lowest node_id first.
-+	 * The remaining slots carry history uuids
-+	 */
- } __packed;
- 
--struct p_rs_uuid {
--	u64	    uuid;
-+struct p_current_uuid {
-+	uint64_t uuid;
-+	uint64_t weak_nodes;
- } __packed;
- 
--/* optional queue_limits if (agreed_features & DRBD_FF_WSAME)
-- * see also struct queue_limits, as of late 2015 */
-+struct p_uuid {
-+	uint64_t uuid;
-+} __packed;
-+
-+/*
-+ * optional queue_limits if (agreed_features & DRBD_FF_WSAME)
-+ * see also struct queue_limits, as of late 2015
-+ */
- struct o_qlim {
- 	/* we don't need it yet, but we may as well communicate it now */
--	u32 physical_block_size;
-+	uint32_t physical_block_size;
- 
--	/* so the original in struct queue_limits is unsigned short,
--	 * but I'd have to put in padding anyways. */
--	u32 logical_block_size;
-+	/*
-+	 * so the original in struct queue_limits is unsigned short,
-+	 * but I'd have to put in padding anyways.
-+	 */
-+	uint32_t logical_block_size;
- 
- 	/* One incoming bio becomes one DRBD request,
- 	 * which may be translated to several bio on the receiving side.
-@@ -339,88 +582,205 @@ struct o_qlim {
- 	 */
- 
- 	/* various IO hints may be useful with "diskless client" setups */
--	u32 alignment_offset;
--	u32 io_min;
--	u32 io_opt;
-+	uint32_t alignment_offset;
-+	uint32_t io_min;
-+	uint32_t io_opt;
- 
--	/* We may need to communicate integrity stuff at some point,
--	 * but let's not get ahead of ourselves. */
-+	/*
-+	 * We may need to communicate integrity stuff at some point,
-+	 * but let's not get ahead of ourselves.
-+	 */
- 
--	/* Backend discard capabilities.
-+	/*
-+	 * Backend discard capabilities.
- 	 * Receiving side uses "blkdev_issue_discard()", no need to communicate
- 	 * more specifics.  If the backend cannot do discards, the DRBD peer
- 	 * may fall back to blkdev_issue_zeroout().
- 	 */
--	u8 discard_enabled;
--	u8 discard_zeroes_data;
--	u8 write_same_capable;
--	u8 _pad;
-+	uint8_t discard_enabled;
-+	uint8_t discard_zeroes_data;
-+	uint8_t write_same_capable;
-+
-+	/* Bitmap block shift relative to 4k. If peers have differnt bitmap
-+	 * granularity, any resync related request needs to be aligned to the
-+	 * larger granularity: we can not clear partial bits.
-+	 * 0 to 8 to represent 4k to 1M.
-+	 * If DRBD_FF_BM_BLOCK_SHIFT is agreed on.
-+	 */
-+	uint8_t bm_block_shift_minus_12;
- } __packed;
- 
- struct p_sizes {
--	u64	    d_size;  /* size of disk */
--	u64	    u_size;  /* user requested size */
--	u64	    c_size;  /* current exported size */
--	u32	    max_bio_size;  /* Maximal size of a BIO */
--	u16	    queue_order_type;  /* not yet implemented in DRBD*/
--	u16	    dds_flags; /* use enum dds_flags here. */
-+	uint64_t d_size;  /* size of disk */
-+	uint64_t u_size;  /* user requested size */
-+	uint64_t c_size;  /* current exported size */
-+	uint32_t max_bio_size;  /* Maximal size of a BIO */
-+	uint16_t queue_order_type;  /* not yet implemented in DRBD*/
-+	uint16_t dds_flags; /* use enum dds_flags here. */
- 
- 	/* optional queue_limits if (agreed_features & DRBD_FF_WSAME) */
- 	struct o_qlim qlim[];
- } __packed;
- 
- struct p_state {
--	u32	    state;
-+	uint32_t state;
- } __packed;
- 
- struct p_req_state {
--	u32	    mask;
--	u32	    val;
-+	uint32_t mask;
-+	uint32_t val;
- } __packed;
- 
- struct p_req_state_reply {
--	u32	    retcode;
-+	uint32_t retcode;
-+} __packed;
-+
-+struct p_twopc_request {
-+	uint32_t tid;  /* transaction identifier */
 +	union {
-+		struct { /* when DRBD_FF_2PC_V2 is set */
-+			uint32_t flags;
-+			uint16_t _pad;
-+			int8_t  s8_initiator_node_id;  /* initiator of the transaction */
-+			int8_t  s8_target_node_id;  /* target of the transaction (or -1) */
-+		};
-+		struct { /* original packet version */
-+			uint32_t u32_initiator_node_id;  /* initiator of the transaction */
-+			uint32_t u32_target_node_id;  /* target of the transaction (or -1) */
-+		};
++		struct cmsghdr cmsg;
++		u8 buf[CMSG_SPACE(sizeof(u8))];
++	} u;
++	struct msghdr msg = {
++		.msg_control = &u,
++		.msg_controllen = sizeof(u),
 +	};
-+	uint64_t nodes_to_reach;
-+	union {
-+		union { /* TWOPC_STATE_CHANGE */
-+			struct {    /* P_TWOPC_PREPARE */
-+				uint64_t _compat_pad;
-+				uint32_t mask;
-+				uint32_t val;
-+			};
-+			struct { /* P_TWOPC_COMMIT */
-+				uint64_t primary_nodes;
-+				uint64_t reachable_nodes; /* when TWOPC_HAS_RECHABLE flag is set */
-+			};
-+		};
-+		union {	 /* TWOPC_RESIZE */
-+			struct {    /* P_TWOPC_PREP_RSZ */
-+				uint64_t user_size;
-+				uint16_t dds_flags;
-+			};
-+			struct {    /* P_TWOPC_COMMIT	*/
-+				uint64_t diskful_primary_nodes;
-+				uint64_t exposed_size;
-+			};
-+		};
-+	};
-+} __packed;
++	int ret;
 +
-+#define TWOPC_HAS_FLAGS     0x80000000 /* For packet dissectors */
-+#define TWOPC_HAS_REACHABLE 0x40000000 /* The reachable_nodes field is valid */
-+#define TWOPC_PRI_INCAPABLE 0x20000000 /* The primary has no access to data */
++	flags = flags ? flags : MSG_WAITALL | MSG_NOSIGNAL;
 +
-+struct p_twopc_reply {
-+	uint32_t tid;  /* transaction identifier */
-+	uint32_t initiator_node_id;  /* initiator of the transaction */
-+	uint64_t reachable_nodes;
++	ret = kernel_recvmsg(socket, &msg, &iov, 1, size, flags);
 +
-+	union {
-+		struct { /* TWOPC_STATE_CHANGE */
-+			uint64_t primary_nodes;
-+			uint64_t weak_nodes;
-+		};
-+		struct { /* TWOPC_RESIZE */
-+			uint64_t diskful_primary_nodes;
-+			uint64_t max_possible_size;
-+		};
-+	};
- } __packed;
- 
- struct p_drbd06_param {
--	u64	  size;
--	u32	  state;
--	u32	  blksize;
--	u32	  protocol;
--	u32	  version;
--	u32	  gen_cnt[5];
--	u32	  bit_map_gen[5];
-+	uint64_t size;
-+	uint32_t state;
-+	uint32_t blksize;
-+	uint32_t protocol;
-+	uint32_t version;
-+	uint32_t gen_cnt[5];
-+	uint32_t bit_map_gen[5];
- } __packed;
- 
- struct p_block_desc {
--	u64 sector;
--	u32 blksize;
--	u32 pad;	/* to multiple of 8 Byte */
-+	uint64_t sector;
-+	uint32_t blksize;
-+	uint32_t pad;	/* to multiple of 8 Byte */
- } __packed;
- 
--/* Valid values for the encoding field.
-- * Bump proto version when changing this. */
-+/*
-+ * Valid values for the encoding field.
-+ * Bump proto version when changing this.
++	if (IS_ENABLED(CONFIG_BLK_DEV_DRBD_TCP_TLS) && msg.msg_controllen != sizeof(u)) {
++		u8 level, description;
++
++		switch (tls_get_record_type(socket->sk, &u.cmsg)) {
++		case 0:
++			fallthrough;
++		case TLS_RECORD_TYPE_DATA:
++			break;
++		case TLS_RECORD_TYPE_ALERT:
++			tls_alert_recv(socket->sk, &msg, &level, &description);
++			ret = (level == TLS_ALERT_LEVEL_FATAL) ? -EACCES : -EAGAIN;
++			break;
++		default:
++			/* discard this record type */
++			ret = -EAGAIN;
++			break;
++		}
++	}
++
++	return ret;
++}
++
++static int dtt_recv(struct drbd_transport *transport, enum drbd_stream stream, void **buf, size_t size, int flags)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	struct socket *socket = tcp_transport->stream[stream];
++	void *buffer;
++	int rv;
++
++	if (!socket)
++		return -ENOTCONN;
++
++	if (flags & CALLER_BUFFER) {
++		buffer = *buf;
++		rv = dtt_recv_short(socket, buffer, size, flags & ~CALLER_BUFFER);
++	} else if (flags & GROW_BUFFER) {
++		TR_ASSERT(transport, *buf == tcp_transport->rbuf[stream].base);
++		buffer = tcp_transport->rbuf[stream].pos;
++		TR_ASSERT(transport, (buffer - *buf) + size <= PAGE_SIZE);
++
++		rv = dtt_recv_short(socket, buffer, size, flags & ~GROW_BUFFER);
++	} else {
++		buffer = tcp_transport->rbuf[stream].base;
++
++		rv = dtt_recv_short(socket, buffer, size, flags);
++		if (rv > 0)
++			*buf = buffer;
++	}
++
++	if (rv > 0)
++		tcp_transport->rbuf[stream].pos = buffer + rv;
++
++	return rv;
++}
++
++
++static int dtt_recv_bio(struct drbd_transport *transport, struct bio_list *bios, size_t size,
++			unsigned int *misalign_bits)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	struct socket *socket = tcp_transport->stream[DATA_STREAM];
++	size_t remaining = size;
++	struct page *page;
++	int err;
++
++	*misalign_bits = 0;
++	if (!socket)
++		return -ENOTCONN;
++
++	do {
++		size_t len, received = 0;
++
++		page = drbd_alloc_pages(transport, GFP_KERNEL, remaining);
++		if (!page)
++			return -ENOMEM;
++		len = min(PAGE_SIZE << compound_order(page), remaining);
++
++		/* A receive timeout or a signal ends MSG_WAITALL early. */
++		while (received < len) {
++			err = dtt_recv_short(socket, page_address(page) + received,
++					     len - received, 0);
++			if (err <= 0)
++				goto fail;
++			received += err;
++		}
++		remaining -= len;
++		err = drbd_bio_add_page(transport, bios, page, len, 0);
++		if (err < 0)
++			goto fail;
++	} while (remaining > 0);
++
++	return size;
++
++fail:
++	drbd_free_page(transport, page);
++	return err;
++}
++
++static void dtt_stats(struct drbd_transport *transport, struct drbd_transport_stats *stats)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++
++	struct socket *socket = tcp_transport->stream[DATA_STREAM];
++
++	if (socket) {
++		struct sock *sk = socket->sk;
++		struct tcp_sock *tp = tcp_sk(sk);
++
++		stats->unread_received = tp->rcv_nxt - tp->copied_seq;
++		stats->unacked_send = tp->write_seq - tp->snd_una;
++		stats->send_buffer_size = sk->sk_sndbuf;
++		stats->send_buffer_used = sk->sk_wmem_queued;
++	}
++}
++
++static void dtt_setbufsize(struct socket *socket, unsigned int snd,
++			   unsigned int rcv)
++{
++	struct sock *sk = socket->sk;
++
++	/* open coded SO_SNDBUF, SO_RCVBUF */
++	if (snd) {
++		sk->sk_sndbuf = snd;
++		sk->sk_userlocks |= SOCK_SNDBUF_LOCK;
++		/* Wake up sending tasks if we upped the value. */
++		sk->sk_write_space(sk);
++	} else {
++		sk->sk_userlocks &= ~SOCK_SNDBUF_LOCK;
++	}
++
++	if (rcv) {
++		sk->sk_rcvbuf = rcv;
++		sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
++	} else {
++		sk->sk_userlocks &= ~SOCK_RCVBUF_LOCK;
++	}
++}
++
++static bool dtt_path_cmp_addr(struct dtt_path *path)
++{
++	struct drbd_path *drbd_path = &path->path;
++	int addr_size;
++
++	addr_size = min(drbd_path->my_addr_len, drbd_path->peer_addr_len);
++	return memcmp(&drbd_path->my_addr, &drbd_path->peer_addr, addr_size) > 0;
++}
++
++/* Translate transient socket errors (connect timeout, peer reset, etc.)
++ * to -EAGAIN so the caller restarts the connect cycle instead of treating
++ * the error as fatal. Other errors are returned unchanged.
 + */
- enum drbd_bitmap_code {
--	/* RLE_VLI_Bytes = 0,
-+	/*
-+	 * RLE_VLI_Bytes = 0,
- 	 * and other bit variants had been defined during
--	 * algorithm evaluation. */
-+	 * algorithm evaluation.
++static int dtt_socket_err_to_eagain(int err)
++{
++	switch (err) {
++	case -ETIMEDOUT:
++	case -EINPROGRESS:
++	case -EINTR:
++	case -ERESTARTSYS:
++	case -ECONNREFUSED:
++	case -ECONNRESET:
++	case -ENETUNREACH:
++	case -EHOSTDOWN:
++	case -EHOSTUNREACH:
++		return -EAGAIN;
++	default:
++		return err;
++	}
++}
++
++static int dtt_try_connect(struct dtt_path *path, struct socket **ret_socket)
++{
++	struct drbd_transport *transport = path->path.transport;
++	const char *what;
++	struct socket *socket;
++	struct sockaddr_storage my_addr, peer_addr;
++	struct drbd_net_conf *nc;
++	int err;
++	int sndbuf_size, rcvbuf_size, connect_int;
++
++	rcu_read_lock();
++	nc = rcu_dereference(transport->net_conf);
++	if (!nc) {
++		rcu_read_unlock();
++		return -EIO;
++	}
++	sndbuf_size = nc->sndbuf_size;
++	rcvbuf_size = nc->rcvbuf_size;
++	connect_int = nc->connect_int;
++	rcu_read_unlock();
++
++	my_addr = path->path.my_addr;
++	if (my_addr.ss_family == AF_INET6)
++		((struct sockaddr_in6 *)&my_addr)->sin6_port = 0;
++	else
++		((struct sockaddr_in *)&my_addr)->sin_port = 0; /* AF_INET & AF_SCI */
++
++	/* In some cases, the network stack can end up overwriting
++	   peer_addr.ss_family, so use a copy here. */
++	peer_addr = path->path.peer_addr;
++
++	what = "sock_create_kern";
++	err = sock_create_kern(path->path.net, my_addr.ss_family, SOCK_STREAM, IPPROTO_TCP, &socket);
++	if (err < 0) {
++		socket = NULL;
++		goto out;
++	}
++
++	socket->sk->sk_rcvtimeo =
++	socket->sk->sk_sndtimeo = connect_int * HZ;
++	dtt_setbufsize(socket, sndbuf_size, rcvbuf_size);
++
++	/* explicitly bind to the configured IP as source IP
++	*  for the outgoing connections.
++	*  This is needed for multihomed hosts and to be
++	*  able to use lo: interfaces for drbd.
++	* Make sure to use 0 as port number, so linux selects
++	*  a free one dynamically.
++	*/
++	what = "bind before connect";
++	err = socket->ops->bind(socket, (struct sockaddr_unsized *) &my_addr,
++			path->path.my_addr_len);
++	if (err < 0)
++		goto out;
++
++	/* connect may fail, peer not yet available.
++	 * stay C_CONNECTING, don't go Disconnecting! */
++	what = "connect";
++	err = socket->ops->connect(socket, (struct sockaddr_unsized *) &peer_addr,
++				   path->path.peer_addr_len, 0);
++	if (err < 0) {
++		err = dtt_socket_err_to_eagain(err);
++		if (err == -EINVAL)
++			err = -EADDRNOTAVAIL;
++	}
++
++out:
++	if (err < 0) {
++		if (socket)
++			sock_release(socket);
++		if (err != -EAGAIN && err != -EADDRNOTAVAIL)
++			tr_err(transport, "%s failed, err = %d\n", what, err);
++		else
++			tr_dbg(transport, "connect %pISpc -> %pISpc: %d\n",
++			       &path->path.my_addr, &peer_addr, err);
++	} else {
++		*ret_socket = socket;
++	}
++
++	return err;
++}
++
++typedef int (*tls_hello_func)(const struct tls_handshake_args *, gfp_t);
++
++struct tls_handshake_wait {
++	struct completion done;
++	struct sock *sk;
++	int status;
++};
++
++static void tls_handshake_done(void *data, int status, key_serial_t peerid)
++{
++	struct tls_handshake_wait *wait = data;
++
++	// Normalize the error to be negative: while the error _should_ be negative
++	// it is not guaranteed: the netlink interface allows any u32 value, which is
++	// then negated and cast to int, so who knows what will be returned.
++	if (status > 0)
++		status = -status;
++
++	/* tlshd reports a reset connection as -EACCES, like a rejected certificate.
++	 * The node that rejects a certificate still has an established connection.
 +	 */
- 	RLE_VLI_Bits = 2,
- };
- 
- struct p_compressed_bm {
--	/* (encoding & 0x0f): actual encoding, see enum drbd_bitmap_code
-+	/*
-+	 * (encoding & 0x0f): actual encoding, see enum drbd_bitmap_code
- 	 * (encoding & 0x80): polarity (set/unset) of first runlength
- 	 * ((encoding >> 4) & 0x07): pad_bits, number of trailing zero bits
- 	 * used to pad up to head.length bytes
- 	 */
--	u8 encoding;
-+	uint8_t encoding;
- 
--	u8 code[];
-+	uint8_t code[];
- } __packed;
- 
- struct p_delay_probe93 {
--	u32     seq_num; /* sequence number to match the two probe packets */
--	u32     offset;  /* usecs the probe got sent after the reference time point */
-+	uint32_t seq_num; /* sequence number to match the two probe packets */
-+	uint32_t offset;  /* usecs the probe got sent after the reference time point */
-+} __packed;
++	if (status && READ_ONCE(wait->sk->sk_state) != TCP_ESTABLISHED)
++		status = -ECONNRESET;
 +
-+struct p_dagtag {
-+	uint64_t dagtag;
-+} __packed;
++	wait->status = status;
++	complete(&wait->done);
++}
 +
-+struct p_peer_ack {
-+	uint64_t mask;
-+	uint64_t dagtag;
-+} __packed;
++static int tls_init_hello(struct socket *sock, const char *peername,
++			  key_serial_t keyring, key_serial_t privkey,
++			  key_serial_t certificate, tls_hello_func hello,
++			  struct tls_handshake_wait *tls_wait)
++{
++	int err;
++	struct tls_handshake_args tls_args = {
++			.ta_sock = sock,
++			.ta_done = tls_handshake_done,
++			.ta_data = tls_wait,
++			.ta_peername = peername,
++			.ta_keyring = keyring,
++			.ta_my_privkey = privkey,
++			.ta_my_cert = certificate,
++	};
 +
-+struct p_peer_block_desc {
-+	uint64_t sector;
-+	uint64_t mask;
-+	uint32_t size;
-+	uint32_t pad;	/* to multiple of 8 Byte */
-+} __packed;
++	if (IS_ERR(sock_alloc_file(sock, O_NONBLOCK, NULL)))
++		return -EIO;
 +
-+struct p_peer_dagtag {
-+	uint64_t dagtag;
-+	uint32_t node_id;
-+} __packed;
++	tls_wait->sk = sock->sk;
 +
-+struct p_flush_requests {
-+	uint64_t flush_sequence;
-+} __packed;
++	do {
++		err = hello(&tls_args, GFP_KERNEL);
++	} while (err == -EAGAIN);
 +
-+struct p_flush_forward {
-+	uint64_t flush_sequence;
-+	uint32_t initiator_node_id;
-+} __packed;
++	return err;
++}
 +
-+struct p_flush_ack {
-+	uint64_t flush_sequence;
-+	uint32_t primary_node_id;
-+} __packed;
++static int tls_wait_hello(struct tls_handshake_wait *csocket_tls_wait,
++			  struct tls_handshake_wait *dsocket_tls_wait,
++			  unsigned long timeout)
++{
++	unsigned long remaining = wait_for_completion_timeout(
++		&csocket_tls_wait->done, timeout);
++	if (!remaining)
++		return -ETIMEDOUT;
 +
-+struct p_enable_replication {
-+	uint8_t enable;
-+	uint8_t _pad1;
-+	uint16_t _pad2;
- } __packed;
- 
- /*
++	if (!wait_for_completion_timeout(&dsocket_tls_wait->done, remaining))
++		return -ETIMEDOUT;
++
++	/* A fatal error on either socket outranks a transient one. */
++	if (dtt_socket_err_to_eagain(csocket_tls_wait->status) != -EAGAIN)
++		return csocket_tls_wait->status ?: dsocket_tls_wait->status;
++
++	return dsocket_tls_wait->status ?: csocket_tls_wait->status;
++}
++
++
++static int dtt_send_first_packet(struct drbd_tcp_transport *tcp_transport, struct socket *socket,
++				 enum drbd_packet cmd)
++{
++	struct p_header80 h;
++
++	h.magic = cpu_to_be32(DRBD_MAGIC);
++	h.command = cpu_to_be16(cmd);
++	h.length = 0;
++
++	return _dtt_send(tcp_transport, socket, &h, sizeof(h), 0);
++}
++
++static void dtt_dbg_socket(struct drbd_transport *transport, struct socket *socket,
++			   const char *what)
++{
++	struct sockaddr_storage me = {}, peer = {};
++
++	socket->ops->getname(socket, (struct sockaddr *)&me, 0);
++	socket->ops->getname(socket, (struct sockaddr *)&peer, 2);
++	tr_dbg(transport, "%s %pISpc -> %pISpc, state %d\n",
++	       what, &me, &peer, socket->sk->sk_state);
++}
++
++/**
++ * dtt_socket_free() - Free the socket
++ * @socket:	pointer to the pointer to the socket.
++ */
++static void dtt_socket_free(struct socket **socket)
++{
++	if (!*socket)
++		return;
++
++	if (IS_ENABLED(CONFIG_BLK_DEV_DRBD_TCP_TLS))
++		tls_handshake_cancel((*socket)->sk);
++	kernel_sock_shutdown(*socket, SHUT_RDWR);
++
++	if ((*socket)->file)
++		sockfd_put((*socket));
++	else
++		sock_release(*socket);
++
++	*socket = NULL;
++}
++
++/**
++ * dtt_socket_ok_or_free() - Free the socket if its connection is not okay
++ * @transport:	the transport the socket belongs to, for the debug message.
++ * @socket:	pointer to the pointer to the socket.
++ * @what:	what the socket is used for, for the debug message.
++ *
++ * Return: true if the socket is connected; otherwise, the socket is freed,
++ * *@socket is set to NULL and false is returned.
++ */
++static bool dtt_socket_ok_or_free(struct drbd_transport *transport,
++				  struct socket **socket, const char *what)
++{
++	if (!*socket)
++		return false;
++
++	if ((*socket)->sk->sk_state == TCP_ESTABLISHED)
++		return true;
++
++	dtt_dbg_socket(transport, *socket, what);
++	dtt_socket_free(socket);
++	return false;
++}
++
++static bool dtt_connection_established(struct drbd_transport *transport,
++				       struct socket **dsocket,
++				       struct socket **csocket,
++				       struct dtt_path **first_path)
++{
++	struct drbd_net_conf *nc;
++	int timeout, good = 0;
++
++	if (!*dsocket || !*csocket)
++		return false;
++
++	rcu_read_lock();
++	nc = rcu_dereference(transport->net_conf);
++	timeout = (nc->sock_check_timeo ?: nc->ping_timeo) * HZ / 10;
++	rcu_read_unlock();
++	schedule_timeout_interruptible(timeout);
++
++	good += dtt_socket_ok_or_free(transport, dsocket, "drop data socket");
++	good += dtt_socket_ok_or_free(transport, csocket, "drop control socket");
++
++	if (good == 0) {
++		kref_put(&(*first_path)->path.kref, drbd_destroy_path);
++		*first_path = NULL;
++	}
++
++	return good == 2;
++}
++
++static struct dtt_path *dtt_wait_connect_cond(struct drbd_transport *transport)
++{
++	struct drbd_listener *listener;
++	struct drbd_path *drbd_path;
++	struct dtt_path *path = NULL;
++	bool rv = false;
++
++	rcu_read_lock();
++	list_for_each_entry_rcu(drbd_path, &transport->paths, list) {
++		path = container_of(drbd_path, struct dtt_path, path);
++
++		/* Pairs with xchg() in drbd_put_listener() */
++		listener = READ_ONCE(drbd_path->listener);
++		if (!listener)
++			continue;
++
++		spin_lock_bh(&listener->waiters_lock);
++		rv = listener->pending_accepts > 0 || !list_empty(&path->sockets);
++		spin_unlock_bh(&listener->waiters_lock);
++
++		if (rv)
++			break;
++	}
++	if (rv)
++		kref_get(&path->path.kref);
++	rcu_read_unlock();
++
++	return rv ? path : NULL;
++}
++
++static void unregister_state_change(struct sock *sock, struct dtt_listener *listener)
++{
++	write_lock_bh(&sock->sk_callback_lock);
++	sock->sk_state_change = listener->original_sk_state_change;
++	sock->sk_user_data = NULL;
++	write_unlock_bh(&sock->sk_callback_lock);
++}
++
++static bool dtt_connect_pending(struct drbd_transport *transport)
++{
++	struct dtt_path *path = dtt_wait_connect_cond(transport);
++
++	if (path)
++		kref_put(&path->path.kref, drbd_destroy_path);
++	return path != NULL;
++}
++
++static int dtt_accept_connection(struct drbd_transport *transport,
++				 struct socket **socket,
++				 struct dtt_path **ret_path, bool nowait)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	struct dtt_socket_container *socket_c;
++	struct sockaddr_storage peer_addr;
++	int connect_int, err = 0;
++	long timeo;
++	struct socket *s_estab = NULL;
++	struct drbd_net_conf *nc;
++	struct drbd_path *drbd_path2;
++	struct drbd_listener *drbd_listener;
++	struct dtt_listener *listener;
++	struct dtt_path *path = NULL;
++
++	/* Protect the listener from a concurrent del-path (drbd_put_listener()) */
++	drbd_listener = drbd_listener_try_get_ref(&(*ret_path)->path);
++	if (!drbd_listener)
++		return -EAGAIN;
++
++	listener = container_of(drbd_listener, struct dtt_listener, listener);
++
++	rcu_read_lock();
++	nc = rcu_dereference(transport->net_conf);
++	if (!nc) {
++		rcu_read_unlock();
++		err = -EINVAL;
++		goto out;
++	}
++	connect_int = nc->connect_int;
++	rcu_read_unlock();
++
++	timeo = connect_int * HZ;
++	timeo += get_random_u32_below(2) ? timeo / 7 : -timeo / 7; /* 28.5% random jitter */
++	if (nowait)
++		timeo = 0;
++
++retry:
++	if (path)
++		kref_put(&path->path.kref, drbd_destroy_path);
++	timeo = wait_event_interruptible_timeout(tcp_transport->wait,
++			(path = dtt_wait_connect_cond(transport)),
++			timeo);
++	if (!path) {
++		err = -EAGAIN;
++		goto out;
++	}
++
++	spin_lock_bh(&listener->listener.waiters_lock);
++	socket_c = list_first_entry_or_null(&path->sockets, struct dtt_socket_container, list);
++	if (socket_c) {
++		s_estab = socket_c->socket;
++		list_del(&socket_c->list);
++		kfree(socket_c);
++	} else if (listener->listener.pending_accepts > 0) {
++		listener->listener.pending_accepts--;
++		spin_unlock_bh(&listener->listener.waiters_lock);
++
++		s_estab = NULL;
++		err = kernel_accept(listener->s_listen, &s_estab, O_NONBLOCK);
++		if (err < 0) {
++			kref_put(&path->path.kref, drbd_destroy_path);
++			goto out;
++		}
++
++		/* The established socket inherits the sk_state_change callback
++		   from the listening socket. */
++		unregister_state_change(s_estab->sk, listener);
++
++		s_estab->ops->getname(s_estab, (struct sockaddr *)&peer_addr, 2);
++
++		spin_lock_bh(&listener->listener.waiters_lock);
++		drbd_path2 = drbd_find_path_by_addr(&listener->listener, &peer_addr);
++		if (!drbd_path2) {
++			struct sockaddr_in6 *from_sin6;
++			struct sockaddr_in *from_sin;
++
++			switch (peer_addr.ss_family) {
++			case AF_INET6:
++				from_sin6 = (struct sockaddr_in6 *)&peer_addr;
++				tr_notice(transport, "Closing unexpected connection from "
++				       "%pI6\n", &from_sin6->sin6_addr);
++				break;
++			default:
++				from_sin = (struct sockaddr_in *)&peer_addr;
++				tr_notice(transport, "Closing unexpected connection from "
++					 "%pI4\n", &from_sin->sin_addr);
++				break;
++			}
++
++			goto retry_locked;
++		}
++		if (drbd_path2 != &path->path) {
++			struct dtt_path *path2 =
++				container_of(drbd_path2, struct dtt_path, path);
++			struct drbd_tcp_transport *path2_tcp_transport =
++				container_of(drbd_path2->transport,
++					     struct drbd_tcp_transport, transport);
++
++			socket_c = kmalloc_obj(*socket_c, GFP_ATOMIC);
++			if (!socket_c) {
++				tr_info(transport, /* path2->transport, */
++					"No mem, dropped an incoming connection\n");
++				goto retry_locked;
++			}
++
++			socket_c->socket = s_estab;
++			s_estab = NULL;
++			list_add_tail(&socket_c->list, &path2->sockets);
++			wake_up(&path2_tcp_transport->wait);
++			goto retry_locked;
++		}
++		if (s_estab->sk->sk_state != TCP_ESTABLISHED) {
++			tr_dbg(transport, "drop accepted socket from %pISpc, state %d\n",
++			       &peer_addr, s_estab->sk->sk_state);
++			goto retry_locked;
++		}
++	}
++	spin_unlock_bh(&listener->listener.waiters_lock);
++	*socket = s_estab;
++	if (*ret_path)
++		kref_put(&(*ret_path)->path.kref, drbd_destroy_path);
++	*ret_path = path;
++	err = 0;
++	goto out;
++
++retry_locked:
++	spin_unlock_bh(&listener->listener.waiters_lock);
++	dtt_socket_free(&s_estab);
++	goto retry;
++
++out:
++	kref_put(&drbd_listener->kref, drbd_listener_destroy);
++	return err;
++}
++
++static int dtt_receive_first_packet(struct drbd_tcp_transport *tcp_transport, struct socket *socket)
++{
++	struct drbd_transport *transport = &tcp_transport->transport;
++	struct p_header80 *h = tcp_transport->rbuf[DATA_STREAM].base;
++	const unsigned int header_size = sizeof(*h);
++	struct drbd_net_conf *nc;
++	int err;
++
++	rcu_read_lock();
++	nc = rcu_dereference(transport->net_conf);
++	if (!nc) {
++		rcu_read_unlock();
++		return -EIO;
++	}
++	socket->sk->sk_rcvtimeo = nc->ping_timeo * 4 * HZ / 10;
++	rcu_read_unlock();
++
++	err = dtt_recv_short(socket, h, header_size, 0);
++	if (err != header_size) {
++		if (err >= 0)
++			err = -EIO;
++		return err;
++	}
++	if (h->magic != cpu_to_be32(DRBD_MAGIC)) {
++		tr_err(transport, "Wrong magic value 0x%08x in receive_first_packet\n",
++			 be32_to_cpu(h->magic));
++		return -EINVAL;
++	}
++	return be16_to_cpu(h->command);
++}
++
++
++static int dtt_control_tcp_input(read_descriptor_t *rd_desc, struct sk_buff *skb,
++				 unsigned int offset, size_t len)
++{
++	struct drbd_transport *transport = rd_desc->arg.data;
++	unsigned int avail, consumed = 0;
++	struct skb_seq_state seq;
++
++	skb_prepare_seq_read(skb, offset, offset + len, &seq);
++	do {
++		struct drbd_const_buffer buffer;
++
++		/*
++		 * skb_seq_read() returns the length of the block assigned to buffer. This might
++		 * be more than is actually ready, so we ensure we only mark as available what
++		 * is ready.
++		 */
++		avail = skb_seq_read(consumed, &buffer.buffer, &seq);
++		if (!avail)
++			break;
++		buffer.avail = min_t(unsigned int, avail, len - consumed);
++		consumed += buffer.avail;
++		drbd_control_data_ready(transport, &buffer);
++	} while (consumed < len);
++	skb_abort_seq_read(&seq);
++
++	return consumed;
++}
++
++static void dtt_control_data_ready_work(struct work_struct *item)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(item, struct drbd_tcp_transport, control_data_ready_work);
++	struct socket *csocket = tcp_transport->stream[CONTROL_STREAM];
++	struct drbd_const_buffer drbd_buffer;
++	int n;
++
++	while (true) {
++		n = dtt_recv_short(csocket, tcp_transport->rbuf[CONTROL_STREAM].base, PAGE_SIZE,
++				   MSG_DONTWAIT | MSG_NOSIGNAL);
++		if (n == 0) {
++			/* Orderly shutdown: the peer closed the meta socket, and
++			 * the close surfaced here as EOF rather than (or before) a
++			 * state-change callback. Do not silently drop it -- treat
++			 * it as a peer-initiated disconnect, mirroring
++			 * dtt_control_state_change(). Otherwise the connection
++			 * lingers until the ping timeout, or forever on a transport
++			 * that reports a close only through the receive path.
++			 */
++			drbd_control_event(&tcp_transport->transport, CLOSED_BY_PEER);
++			break;
++		}
++		if (n < 0)
++			break;	/* -EAGAIN: nothing more available right now */
++
++		drbd_buffer.buffer = tcp_transport->rbuf[CONTROL_STREAM].base;
++		drbd_buffer.avail = n;
++		drbd_control_data_ready(&tcp_transport->transport, &drbd_buffer);
++	}
++}
++
++static void dtt_control_data_ready(struct sock *sock)
++{
++	struct drbd_transport *transport = sock->sk_user_data;
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++
++	read_descriptor_t rd_desc = {
++		.count = 1,
++		.arg = { .data = transport },
++	};
++
++	if (!test_bit(DTT_DATA_READY_ARMED, &tcp_transport->flags)
++	    && tcp_transport->original_control_sk_data_ready)
++		return tcp_transport->original_control_sk_data_ready(sock);
++
++	/* We have two different paths depending on if TLS is enabled or not.
++	 * If TLS is enabled, we can't use read_sock, firstly because it's not implemented for the
++	 * TLS protocol on most kernels, secondly the implementation that does exist is not safe
++	 * to call from SOFTIRQ context. Instead, we schedule a work and increment the counter of
++	 * "pending" ready events.
++	 *
++	 * In normal TCP mode, we can simply use tcp_read_sock, as that is safe to call from SOFTIRQ
++	 * contexts.
++	 */
++	mod_timer(&tcp_transport->control_timer, jiffies + sock->sk_rcvtimeo);
++	if (tcp_transport->control_data_ready_work.func) {
++		queue_work(dtt_csocket_recv, &tcp_transport->control_data_ready_work);
++	} else {
++		spin_lock_bh(&tcp_transport->control_recv_lock);
++		tcp_read_sock(sock, &rd_desc, dtt_control_tcp_input);
++		spin_unlock_bh(&tcp_transport->control_recv_lock);
++	}
++}
++
++static void dtt_control_state_change(struct sock *sock)
++{
++	struct drbd_transport *transport = sock->sk_user_data;
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++
++	switch (sock->sk_state) {
++	case TCP_FIN_WAIT1:
++	case TCP_CLOSE_WAIT:
++	case TCP_CLOSE:
++	case TCP_LAST_ACK:
++	case TCP_CLOSING:
++		drbd_control_event(transport, CLOSED_BY_PEER);
++		break;
++	default:
++		tr_warn(transport, "unhandled state %d\n", sock->sk_state);
++	}
++
++	tcp_transport->original_control_sk_state_change(sock);
++}
++
++static void dtt_incoming_connection(struct sock *sock)
++{
++	struct dtt_listener *listener = sock->sk_user_data;
++	struct drbd_path *drbd_path;
++	void (*state_change)(struct sock *sock);
++
++	state_change = listener->original_sk_state_change;
++	state_change(sock);
++
++	spin_lock(&listener->listener.waiters_lock);
++	listener->listener.pending_accepts++;
++	list_for_each_entry(drbd_path, &listener->listener.waiters, listener_link) {
++		struct drbd_tcp_transport *tcp_transport =
++			container_of(drbd_path->transport,
++				     struct drbd_tcp_transport, transport);
++		wake_up(&tcp_transport->wait);
++	}
++	spin_unlock(&listener->listener.waiters_lock);
++}
++
++static void dtt_control_timer_fn(struct timer_list *t)
++{
++	struct drbd_tcp_transport *tcp_transport = timer_container_of(tcp_transport, t,
++			control_timer);
++	struct drbd_transport *transport = &tcp_transport->transport;
++
++	drbd_control_event(transport, TIMEOUT);
++}
++
++static void dtt_destroy_listener(struct drbd_listener *generic_listener)
++{
++	struct dtt_listener *listener =
++		container_of(generic_listener, struct dtt_listener, listener);
++
++	if (!listener->s_listen)
++		return;
++	unregister_state_change(listener->s_listen->sk, listener);
++	sock_release(listener->s_listen);
++}
++
++static int dtt_init_listener(struct drbd_transport *transport,
++			     const struct sockaddr *addr,
++			     struct net *net,
++			     struct drbd_listener *drbd_listener)
++{
++	int err, sndbuf_size, rcvbuf_size, addr_len;
++	struct sockaddr_storage my_addr;
++	struct dtt_listener *listener = container_of(drbd_listener, struct dtt_listener, listener);
++	struct socket *s_listen;
++	struct drbd_net_conf *nc;
++	const char *what = "";
++
++	rcu_read_lock();
++	nc = rcu_dereference(transport->net_conf);
++	if (!nc) {
++		rcu_read_unlock();
++		return -EINVAL;
++	}
++	sndbuf_size = nc->sndbuf_size;
++	rcvbuf_size = nc->rcvbuf_size;
++	rcu_read_unlock();
++
++	my_addr = *(struct sockaddr_storage *)addr;
++
++	err = sock_create_kern(net, my_addr.ss_family, SOCK_STREAM, IPPROTO_TCP, &s_listen);
++	if (err < 0) {
++		s_listen = NULL;
++		what = "sock_create_kern";
++		goto out;
++	}
++
++	s_listen->sk->sk_reuse = SK_CAN_REUSE; /* SO_REUSEADDR */
++	dtt_setbufsize(s_listen, sndbuf_size, rcvbuf_size);
++
++	addr_len = addr->sa_family == AF_INET6 ? sizeof(struct sockaddr_in6)
++		: sizeof(struct sockaddr_in);
++
++	err = s_listen->ops->bind(s_listen, (struct sockaddr_unsized *)&my_addr, addr_len);
++	if (err < 0) {
++		what = "bind before listen";
++		goto out;
++	}
++
++	listener->s_listen = s_listen;
++	write_lock_bh(&s_listen->sk->sk_callback_lock);
++	listener->original_sk_state_change = s_listen->sk->sk_state_change;
++	s_listen->sk->sk_state_change = dtt_incoming_connection;
++	s_listen->sk->sk_user_data = listener;
++	write_unlock_bh(&s_listen->sk->sk_callback_lock);
++
++	err = s_listen->ops->listen(s_listen, DRBD_PEERS_MAX * 2);
++	if (err < 0) {
++		what = "listen";
++		goto out;
++	}
++
++	listener->listener.listen_addr = my_addr;
++
++	return 0;
++out:
++	if (s_listen)
++		sock_release(s_listen);
++
++	if (err < 0 &&
++	    err != -EAGAIN && err != -EINTR && err != -ERESTARTSYS && err != -EADDRINUSE &&
++	    err != -EADDRNOTAVAIL)
++		tr_err(transport, "%s failed, err = %d\n", what, err);
++
++	return err;
++}
++
++static void dtt_cleanup_accepted_sockets(struct dtt_path *path)
++{
++	while (!list_empty(&path->sockets)) {
++		struct dtt_socket_container *socket_c =
++			list_first_entry(&path->sockets, struct dtt_socket_container, list);
++
++		list_del(&socket_c->list);
++		dtt_socket_free(&socket_c->socket);
++		kfree(socket_c);
++	}
++}
++
++static void dtt_finish_connect(struct drbd_transport *transport)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	struct dtt_path *path;
++
++	clear_bit(DTT_CONNECTING, &tcp_transport->flags);
++
++	list_for_each_entry(path, &transport->paths, path.list) {
++		drbd_put_listener(&path->path);
++		dtt_cleanup_accepted_sockets(path);
++	}
++}
++
++static struct dtt_path *dtt_next_path(struct dtt_path *path, struct drbd_transport *transport)
++{
++	struct drbd_path *drbd_path;
++
++	drbd_path = __drbd_next_path_ref(path ? &path->path : NULL, transport);
++
++	/* Loop when we reach the end. */
++	if (!drbd_path)
++		drbd_path = __drbd_next_path_ref(NULL, transport);
++
++	return drbd_path ? container_of(drbd_path, struct dtt_path, path) : NULL;
++}
++
++static int dtt_prepare_connect(struct drbd_transport *transport)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	struct dtt_path *path;
++	struct drbd_path *drbd_path;
++
++	list_for_each_entry(path, &transport->paths, path.list)
++		dtt_cleanup_accepted_sockets(path);
++
++	set_bit(DTT_CONNECTING, &tcp_transport->flags);
++
++	list_for_each_entry(drbd_path, &transport->paths, list) {
++		if (!drbd_path->listener) {
++			int err = drbd_get_listener(drbd_path);
++
++			if (err)
++				return err;
++		}
++	}
++
++	return 0;
++}
++
++static int dtt_connect(struct drbd_transport *transport)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	struct dtt_path *connect_to_path, *first_path = NULL;
++	struct socket *dsocket, *csocket;
++	struct drbd_net_conf *nc;
++	bool tls, dsocket_is_server = false, csocket_is_server = false;
++	char peername[64];
++	key_serial_t tls_keyring, tls_privkey, tls_certificate;
++	int timeout, err;
++	bool ok, nowait = false;
++	struct tls_handshake_wait csocket_tls_wait = { .status = 0 };
++	struct tls_handshake_wait dsocket_tls_wait = { .status = 0 };
++
++	dsocket = NULL;
++	csocket = NULL;
++
++	connect_to_path = dtt_next_path(NULL, transport);
++	if (!connect_to_path) {
++		err = -EDESTADDRREQ;
++		goto out;
++	}
++
++	do {
++		struct socket *s = NULL;
++
++		/* The peer may already use these as its data and control socket */
++		if (!nowait && dtt_connect_pending(transport)) {
++			nowait = true;
++			goto retry;
++		}
++		nowait = false;
++
++		err = dtt_try_connect(connect_to_path, &s);
++		if (err < 0 && err != -EAGAIN)
++			goto out_release_sockets;
++
++		if (s) {
++			bool use_for_data;
++
++			if (first_path) {
++				if (first_path != connect_to_path) {
++					tr_info(transport, "initial paths crossed A - fail over\n");
++					dtt_socket_free(&dsocket);
++					dtt_socket_free(&csocket);
++				}
++
++				kref_put(&first_path->path.kref, drbd_destroy_path);
++				first_path = NULL;
++			}
++
++			kref_get(&connect_to_path->path.kref);
++			first_path = connect_to_path;
++
++			if (!dsocket && !csocket) {
++				use_for_data = dtt_path_cmp_addr(first_path);
++			} else if (!dsocket) {
++				use_for_data = true;
++			} else {
++				if (csocket) {
++					tr_err(transport, "Logic error in conn_connect()\n");
++					goto out_eagain;
++				}
++				use_for_data = false;
++			}
++
++			if (!use_for_data)
++				clear_bit(RESOLVE_CONFLICTS, &transport->flags);
++
++			err = dtt_send_first_packet(tcp_transport,
++						    s,
++						    use_for_data ? P_INITIAL_DATA : P_INITIAL_META);
++
++			if (err < 0) {
++				tr_warn(transport, "Error sending initial packet: %d\n", err);
++				dtt_socket_free(&s);
++			} else if (use_for_data) {
++				dsocket = s;
++				dsocket_is_server = false;
++				dtt_dbg_socket(transport, s, "data socket, client");
++			} else {
++				csocket = s;
++				csocket_is_server = false;
++				dtt_dbg_socket(transport, s, "control socket, client");
++			}
++		} else if (!first_path) {
++			connect_to_path = dtt_next_path(connect_to_path, transport);
++
++			/*
++			 * The final path should not be removed while
++			 * connecting, but handle the case for robustness.
++			 */
++			err = -EDESTADDRREQ;
++			if (!connect_to_path)
++				goto out_release_sockets;
++		}
++
++		if (dtt_connection_established(transport, &dsocket, &csocket, &first_path))
++			break;
++
++retry:
++		s = NULL;
++		err = dtt_accept_connection(transport, &s, &connect_to_path, nowait);
++		if (s)
++			nowait = false;
++		if (err < 0 && err != -EAGAIN)
++			goto out_release_sockets;
++
++		if (s) {
++			int fp = dtt_receive_first_packet(tcp_transport, s);
++
++			dtt_dbg_socket(transport, s, fp == P_INITIAL_DATA ? "data socket, server" :
++				       fp == P_INITIAL_META ? "control socket, server" :
++				       "accepted socket without initial packet");
++
++			if (first_path) {
++				if (first_path != connect_to_path) {
++					tr_info(transport, "initial paths crossed P - fail over\n");
++					dtt_socket_free(&dsocket);
++					dtt_socket_free(&csocket);
++				}
++
++				kref_put(&first_path->path.kref, drbd_destroy_path);
++				first_path = NULL;
++			}
++
++			kref_get(&connect_to_path->path.kref);
++			first_path = connect_to_path;
++
++			dtt_socket_ok_or_free(transport, &dsocket, "drop data socket");
++			dtt_socket_ok_or_free(transport, &csocket, "drop control socket");
++			switch (fp) {
++			case P_INITIAL_DATA:
++				if (dsocket) {
++					tr_warn(transport, "initial packet S crossed\n");
++					dtt_socket_free(&dsocket);
++					dsocket = s;
++					dsocket_is_server = true;
++					goto randomize;
++				}
++				dsocket = s;
++				dsocket_is_server = true;
++				break;
++			case P_INITIAL_META:
++				set_bit(RESOLVE_CONFLICTS, &transport->flags);
++				if (csocket) {
++					tr_warn(transport, "initial packet M crossed\n");
++					dtt_socket_free(&csocket);
++					csocket = s;
++					csocket_is_server = true;
++					goto randomize;
++				}
++				csocket = s;
++				csocket_is_server = true;
++				break;
++			default:
++				tr_warn(transport, "Error receiving initial packet: %d\n", fp);
++				dtt_socket_free(&s);
++randomize:
++				if (get_random_u32_below(2))
++					goto retry;
++			}
++		}
++
++		if (drbd_should_abort_listening(transport))
++			goto out_eagain;
++
++		ok = dtt_connection_established(transport, &dsocket, &csocket, &first_path);
++	} while (!ok);
++
++	dtt_dbg_socket(transport, dsocket, dsocket_is_server ? "use data socket, server" :
++		       "use data socket, client");
++	dtt_dbg_socket(transport, csocket, csocket_is_server ? "use control socket, server" :
++		       "use control socket, client");
++
++	rcu_read_lock();
++	nc = rcu_dereference(transport->net_conf);
++	timeout = nc->timeout * HZ / 10;
++	tls = nc->tls;
++	memcpy(peername, nc->name, 64);
++	tls_keyring = nc->tls_keyring;
++	tls_privkey = nc->tls_privkey;
++	tls_certificate = nc->tls_certificate;
++	rcu_read_unlock();
++
++	write_lock_bh(&csocket->sk->sk_callback_lock);
++	clear_bit(DTT_DATA_READY_ARMED, &tcp_transport->flags);
++	tcp_transport->original_control_sk_data_ready = csocket->sk->sk_data_ready;
++	csocket->sk->sk_user_data = transport;
++	csocket->sk->sk_data_ready = dtt_control_data_ready;
++	write_unlock_bh(&csocket->sk->sk_callback_lock);
++
++	if (tls) {
++		/* dtt_net_conf_change() refuses tls without TLS support. */
++		if (!IS_ENABLED(CONFIG_BLK_DEV_DRBD_TCP_TLS)) {
++			err = -EOPNOTSUPP;
++			goto out_release_sockets;
++		}
++
++		csocket_tls_wait.done = COMPLETION_INITIALIZER_ONSTACK(csocket_tls_wait.done);
++		dsocket_tls_wait.done = COMPLETION_INITIALIZER_ONSTACK(dsocket_tls_wait.done);
++
++		err = tls_init_hello(
++			csocket, peername, tls_keyring, tls_privkey, tls_certificate,
++			csocket_is_server ? tls_server_hello_x509 : tls_client_hello_x509,
++			&csocket_tls_wait);
++		if (err < 0) {
++			tr_warn(transport, "Error from control socket tls handshake: %d\n", err);
++			err = dtt_socket_err_to_eagain(err);
++			goto out_release_sockets;
++		}
++
++		err = tls_init_hello(
++			dsocket, peername, tls_keyring, tls_privkey, tls_certificate,
++			dsocket_is_server ? tls_server_hello_x509 : tls_client_hello_x509,
++			&dsocket_tls_wait);
++		if (err < 0) {
++			tr_warn(transport, "Error from data socket tls handshake: %d\n", err);
++			err = dtt_socket_err_to_eagain(err);
++			goto out_release_sockets;
++		}
++
++		err = tls_wait_hello(&csocket_tls_wait, &dsocket_tls_wait, timeout);
++		if (err < 0) {
++			tr_warn(transport, "Error from tls handshake: %d\n", err);
++			err = dtt_socket_err_to_eagain(err);
++			goto out_release_sockets;
++		}
++
++		INIT_WORK(&tcp_transport->control_data_ready_work, dtt_control_data_ready_work);
++	}
++
++	TR_ASSERT(transport, first_path == connect_to_path);
++	set_bit(TR_ESTABLISHED, &connect_to_path->path.flags);
++	drbd_path_event(transport, &connect_to_path->path);
++
++	dsocket->sk->sk_reuse = SK_CAN_REUSE; /* SO_REUSEADDR */
++	csocket->sk->sk_reuse = SK_CAN_REUSE; /* SO_REUSEADDR */
++
++	/* We are a block device, we are in the write-out path,
++	 * we may need memory to facilitate memory reclaim
++	 */
++	dsocket->sk->sk_allocation = GFP_ATOMIC;
++	csocket->sk->sk_allocation = GFP_ATOMIC;
++
++	dsocket->sk->sk_use_task_frag = false;
++	csocket->sk->sk_use_task_frag = false;
++
++	sk_set_memalloc(dsocket->sk);
++	sk_set_memalloc(csocket->sk);
++
++	dsocket->sk->sk_priority = TC_PRIO_INTERACTIVE_BULK;
++	csocket->sk->sk_priority = TC_PRIO_INTERACTIVE;
++
++	/* NOT YET ...
++	 * sock.socket->sk->sk_sndtimeo = transport->net_conf->timeout*HZ/10;
++	 * sock.socket->sk->sk_rcvtimeo = MAX_SCHEDULE_TIMEOUT;
++	 * first set it to the P_CONNECTION_FEATURES timeout,
++	 * which we set to 4x the configured ping_timeout. */
++
++	/* we don't want delays.
++	 * we use tcp_sock_set_cork where appropriate, though */
++	tcp_sock_set_nodelay(dsocket->sk);
++	tcp_sock_set_nodelay(csocket->sk);
++
++	tcp_transport->stream[DATA_STREAM] = dsocket;
++	tcp_transport->stream[CONTROL_STREAM] = csocket;
++
++	dsocket->sk->sk_sndtimeo = timeout;
++	csocket->sk->sk_sndtimeo = timeout;
++
++	sock_set_keepalive(dsocket->sk);
++
++	if (drbd_keepidle)
++		tcp_sock_set_keepidle(dsocket->sk, drbd_keepidle);
++	if (drbd_keepcnt)
++		tcp_sock_set_keepcnt(dsocket->sk, drbd_keepcnt);
++	if (drbd_keepintvl)
++		tcp_sock_set_keepintvl(dsocket->sk, drbd_keepintvl);
++
++	write_lock_bh(&csocket->sk->sk_callback_lock);
++	tcp_transport->original_control_sk_state_change = csocket->sk->sk_state_change;
++	csocket->sk->sk_state_change = dtt_control_state_change;
++	set_bit(DTT_DATA_READY_ARMED, &tcp_transport->flags);
++	write_unlock_bh(&csocket->sk->sk_callback_lock);
++
++	err = 0;
++	goto out;
++
++out_eagain:
++	err = -EAGAIN;
++
++out_release_sockets:
++	dtt_socket_free(&dsocket);
++	dtt_socket_free(&csocket);
++
++out:
++	if (first_path)
++		kref_put(&first_path->path.kref, drbd_destroy_path);
++	if (connect_to_path)
++		kref_put(&connect_to_path->path.kref, drbd_destroy_path);
++
++	return err;
++}
++
++static int dtt_net_conf_change(struct drbd_transport *transport,
++			       struct drbd_net_conf *new_net_conf)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	struct drbd_net_conf *old_net_conf;
++	struct socket *data_socket = tcp_transport->stream[DATA_STREAM];
++	struct socket *control_socket = tcp_transport->stream[CONTROL_STREAM];
++
++	rcu_read_lock();
++	old_net_conf = rcu_dereference(transport->net_conf);
++	rcu_read_unlock();
++
++	if (new_net_conf->tls && !IS_ENABLED(CONFIG_BLK_DEV_DRBD_TCP_TLS)) {
++		tr_warn(transport, "tls requested, but TLS support is not built in\n");
++		return -EOPNOTSUPP;
++	}
++
++	if (old_net_conf && old_net_conf->tls != new_net_conf->tls &&
++	    (data_socket || control_socket)) {
++		tr_warn(transport, "cannot switch tls (%s -> %s) while connected\n",
++			old_net_conf->tls ? "yes" : "no", new_net_conf->tls ? "yes" : "no");
++		return -EINVAL;
++	}
++
++	if (data_socket) {
++		dtt_setbufsize(data_socket, new_net_conf->sndbuf_size, new_net_conf->rcvbuf_size);
++	}
++
++	if (control_socket) {
++		dtt_setbufsize(control_socket, new_net_conf->sndbuf_size, new_net_conf->rcvbuf_size);
++	}
++
++	return 0;
++}
++
++static void dtt_set_rcvtimeo(struct drbd_transport *transport, enum drbd_stream stream, long timeout)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	struct socket *socket = tcp_transport->stream[stream];
++
++	if (!socket)
++		return;
++
++	socket->sk->sk_rcvtimeo = timeout;
++
++	if (stream == CONTROL_STREAM)
++		mod_timer(&tcp_transport->control_timer, jiffies + timeout);
++
++}
++
++static long dtt_get_rcvtimeo(struct drbd_transport *transport, enum drbd_stream stream)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	struct socket *socket = tcp_transport->stream[stream];
++
++	if (!socket)
++		return -ENOTCONN;
++
++	return socket->sk->sk_rcvtimeo;
++}
++
++static bool dtt_stream_ok(struct drbd_transport *transport, enum drbd_stream stream)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	struct socket *socket = tcp_transport->stream[stream];
++
++	return socket && socket->sk;
++}
++
++static void dtt_update_congested(struct drbd_tcp_transport *tcp_transport)
++{
++	struct socket *socket = tcp_transport->stream[DATA_STREAM];
++	struct sock *sock;
++
++	if (!socket)
++		return;
++
++	sock = socket->sk;
++	if (sock->sk_wmem_queued > sock->sk_sndbuf * 4 / 5)
++		set_bit(NET_CONGESTED, &tcp_transport->transport.flags);
++}
++
++static int dtt_send_page(struct drbd_transport *transport, enum drbd_stream stream,
++			 struct page *page, int offset, size_t size, unsigned msg_flags)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	struct socket *socket = tcp_transport->stream[stream];
++	struct drbd_net_conf *nc;
++	struct msghdr msg;
++	struct bio_vec bvec;
++	int len = size;
++	int err = -EIO;
++	bool tls;
++
++	if (!socket)
++		return -ENOTCONN;
++
++	rcu_read_lock();
++	nc = rcu_dereference(transport->net_conf);
++	tls = nc && nc->tls;
++	rcu_read_unlock();
++
++	/* With kTLS the payload is encrypted into freshly allocated TLS records,
++	 * so there is no zero-copy to preserve. Doing so would cause page ref bugs.
++	 */
++	if (tls)
++		msg_flags &= ~MSG_SPLICE_PAGES;
++
++	msg = (struct msghdr) { .msg_flags = msg_flags | MSG_NOSIGNAL };
++
++	dtt_update_congested(tcp_transport);
++	do {
++		int sent;
++
++		if (tls) {
++			/* Map and send at most one page at a time. */
++			struct page *p = page + (offset >> PAGE_SHIFT);
++			unsigned int poff = offset & ~PAGE_MASK;
++			unsigned int chunk = min_t(int, len, PAGE_SIZE - poff);
++			void *addr = kmap_local_page(p);
++			struct kvec iov = { .iov_base = addr + poff, .iov_len = chunk };
++
++			iov_iter_kvec(&msg.msg_iter, ITER_SOURCE, &iov, 1, chunk);
++			sent = sock_sendmsg(socket, &msg);
++			kunmap_local(addr);
++		} else {
++			bvec_set_page(&bvec, page, len, offset);
++			iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, len);
++
++			sent = sock_sendmsg(socket, &msg);
++		}
++		if (sent <= 0) {
++			if (sent == -EAGAIN) {
++				if (drbd_stream_send_timed_out(transport, stream))
++					break;
++				continue;
++			}
++			tr_warn(transport, "%s: size=%d len=%d sent=%d\n",
++			     __func__, (int)size, len, sent);
++			if (sent < 0)
++				err = sent;
++			break;
++		}
++		len    -= sent;
++		offset += sent;
++		/* NOTE: it may take up to twice the socket timeout to have it
++		 * return -EAGAIN, the first timeout will likely happen with a
++		 * partial send, masking the timeout.  Maybe we want to export
++		 * drbd_stream_should_continue_after_partial_send(transport, stream)
++		 * and add that to the while() condition below.
++		 */
++	} while (len > 0 /* THINK && peer_device->repl_state[NOW] >= L_ESTABLISHED */);
++	clear_bit(NET_CONGESTED, &tcp_transport->transport.flags);
++
++	if (len == 0)
++		err = 0;
++
++	return err;
++}
++
++static int dtt_send_bio(struct drbd_transport *transport, struct bio *bio, unsigned int msg_flags)
++{
++	struct bio_vec bvec;
++	struct bvec_iter iter;
++
++	bio_for_each_segment(bvec, bio, iter) {
++		int err;
++
++		err = dtt_send_page(transport, DATA_STREAM, bvec.bv_page,
++				      bvec.bv_offset, bvec.bv_len,
++				      msg_flags | (bio_iter_last(bvec, iter) ? 0 : MSG_MORE));
++		if (err)
++			return err;
++	}
++	return 0;
++}
++
++static bool dtt_hint(struct drbd_transport *transport, enum drbd_stream stream,
++		enum drbd_tr_hints hint)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	bool rv = true;
++	struct socket *socket = tcp_transport->stream[stream];
++
++	if (!socket)
++		return false;
++
++	switch (hint) {
++	case CORK:
++		tcp_sock_set_cork(socket->sk, true);
++		break;
++	case UNCORK:
++		tcp_sock_set_cork(socket->sk, false);
++		break;
++	case NODELAY:
++		tcp_sock_set_nodelay(socket->sk);
++		break;
++	case NOSPACE:
++		sk_set_nospace(socket->sk);
++		break;
++	case QUICKACK:
++		tcp_sock_set_quickack(socket->sk, 2);
++		break;
++	default: /* not implemented, but should not trigger error handling */
++		return true;
++	}
++
++	return rv;
++}
++
++static void dtt_debugfs_show_stream(struct seq_file *m, struct socket *socket)
++{
++	struct sock *sk = socket->sk;
++	struct tcp_sock *tp = tcp_sk(sk);
++
++	seq_printf(m, "unread receive buffer: %u Byte\n",
++		   tp->rcv_nxt - tp->copied_seq);
++	seq_printf(m, "unacked send buffer: %u Byte\n",
++		   tp->write_seq - tp->snd_una);
++	seq_printf(m, "send buffer size: %u Byte\n", sk->sk_sndbuf);
++	seq_printf(m, "send buffer used: %u Byte\n", sk->sk_wmem_queued);
++}
++
++static void dtt_debugfs_show(struct drbd_transport *transport, struct seq_file *m)
++{
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	enum drbd_stream i;
++
++	/* BUMP me if you change the file format/content/presentation */
++	seq_printf(m, "v: %u\n\n", 0);
++
++	for (i = DATA_STREAM; i <= CONTROL_STREAM ; i++) {
++		struct socket *socket = tcp_transport->stream[i];
++
++		if (socket) {
++			seq_printf(m, "%s stream\n", i == DATA_STREAM ? "data" : "control");
++			dtt_debugfs_show_stream(m, socket);
++		}
++	}
++
++}
++
++static int dtt_add_path(struct drbd_path *drbd_path)
++{
++	struct drbd_transport *transport = drbd_path->transport;
++	struct drbd_tcp_transport *tcp_transport =
++		container_of(transport, struct drbd_tcp_transport, transport);
++	struct dtt_path *path = container_of(drbd_path, struct dtt_path, path);
++
++	clear_bit(TR_ESTABLISHED, &drbd_path->flags);
++	INIT_LIST_HEAD(&path->sockets);
++
++	if (!test_bit(DTT_CONNECTING, &tcp_transport->flags))
++		return 0;
++
++	return drbd_get_listener(drbd_path);
++}
++
++static bool dtt_may_remove_path(struct drbd_path *drbd_path)
++{
++	return !test_bit(TR_ESTABLISHED, &drbd_path->flags);
++}
++
++static void dtt_remove_path(struct drbd_path *drbd_path)
++{
++	drbd_put_listener(drbd_path);
++}
++
++static int __init dtt_initialize(void)
++{
++	dtt_csocket_recv = alloc_workqueue("dtt_csocket_recv",
++					   WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
++	if (!dtt_csocket_recv)
++		return -ENOMEM;
++	return drbd_register_transport_class(&tcp_transport_class,
++					     DRBD_TRANSPORT_API_VERSION,
++					     sizeof(struct drbd_transport));
++}
++
++static void __exit dtt_cleanup(void)
++{
++	destroy_workqueue(dtt_csocket_recv);
++	drbd_unregister_transport_class(&tcp_transport_class);
++}
++
++module_init(dtt_initialize)
++module_exit(dtt_cleanup)
 -- 
 2.56.0
 
